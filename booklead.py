@@ -66,9 +66,9 @@ async def fetch_image(url: str, i,queue,headers):
             await queue.put(result)
            
 async def async_images(url,num,headers):
-     """Не добавляйте в util.py, у меня тогда asyncio не работал (может баг на моей стороне)
-     call every tile image to download in async mode (in the end, add binary with the image number to results_prlDl
-     """
+    """Не добавляйте в util.py, у меня тогда asyncio не работал (может баг на моей стороне)
+    call every tile image to download in async mode (in the end, add binary with the image number to results_prlDl
+    """
     global results_prlDl
     results_prlDl=[]
     
