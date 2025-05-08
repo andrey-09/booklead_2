@@ -57,12 +57,18 @@ def saveImage(url, img_id, folder, ext, referer):
 
 
 async def fetch_image(url: str, i,queue,headers):
+    """ Не добавляйте в util.py, у меня тогда asyncio не работал (может баг на моей стороне)
+    по url скачиваю картинку и добавляю в binary в queue asyncio
+    """
     async with ClientSession() as session:
         async with session.get(url, headers=headers) as response:
             result = (i, await response.read())
             await queue.put(result)
            
 async def async_images(url,num,headers):
+     """Не добавляйте в util.py, у меня тогда asyncio не работал (может баг на моей стороне)
+     call every tile image to download in async mode (in the end, add binary with the image number to results_prlDl
+     """
     global results_prlDl
     results_prlDl=[]
     
@@ -116,7 +122,6 @@ def prlDl(url):
     soup = BeautifulSoup(html_text, 'html.parser')
     title = select_one_text_optional(soup, 'h1') or md5_hex(url)
     title = safe_file_name(title)
-    #sys.stdout.write(title)
     ptext(f'Каталог для загрузки: {title}')
     
     for script in soup.findAll('script'):
@@ -133,22 +138,26 @@ def prlDl(url):
     for idx, page in enumerate(pages):
         
         img_url = 'https://content.prlib.ru/fcgi-bin/iipsrv.fcgi?FIF={}/{}&JTL={},'.format(
-            book['imageDir'], page['f'], page['m'])
+            book['imageDir'], page['f'], page['m']) #поменял здесь немного вид урл, так как по частям качаю
+        # брал урл отсюда: https://iipimage.sourceforge.io/documentation/protocol
         img_url+="{}"
         width, height=number_of_images(page["d"][len(page['d']) - 1]['w'],page["d"][len(page['d']) - 1]['h'])
         
         image_short = '%05d.%s' % (idx+1, ext)
         image_path = os.path.join(BOOK_DIR, title, image_short)
-        
+
+        # заменяю все фичи ручками (например тут skip_if_exists), которые были ранее доступны через функции 
+        #(т.к. метод у меня скачивания немного другой)
         if os.path.exists(image_path) and os.stat(image_path).st_size > 0:
             log.info(f'Пропускаю скачанный файл: {image_path}')
         else: 
             mkdirs_for_regular_file(image_path)
             headers = {'Referer': url}
-            nest_asyncio.apply()           
+            nest_asyncio.apply() # нужен только чтобы async работал нормально ( https://pypi.org/project/nest-asyncio/)
+            # получить все данные с картиники
             asyncio.run(async_images(img_url,width*height,headers))
             global results_prlDl
-
+            # просессить все данные и в конце вывести картинку
             Postprocess(results_prlDl,width,height, image_path)
             
         
