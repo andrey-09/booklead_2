@@ -92,6 +92,9 @@ def mkdirs_for_regular_file(filename: str):
                 raise
 
 def Postprocess(results_prlDl,width, height,image_path):
+    """
+     Прохожу через бинарные данные в results_prlDl, ставлю их на правильные места в картинке исходной и вывожу все в файл, напртмер 0001.jpg
+    """
     Total_Image=[i for i in range(len(results_prlDl))]
     for item in results_prlDl:
         Total_Image[item[0]]=BinaryToDecimal(item[1],os.path.dirname(image_path))
@@ -108,6 +111,9 @@ def Postprocess(results_prlDl,width, height,image_path):
     fh.write(data)
     fh.close()
 def number_of_images(width, height):
+    """
+    получаю кол-во картинок по ширине и длине (возможно можно в одну строчку как-то:)
+    """
     num_w=width//256
     if width%256!=0:
         num_w+=1
@@ -117,12 +123,18 @@ def number_of_images(width, height):
     return int(num_w),int(num_h)  
     
 def BinaryToDecimal(binary,image_path):
+    """
+    тупой вариант перевода binary в decimal для картинки. остальные способы казались слишком)
+    """
     with open(os.path.join(image_path, "test.jpg"), "wb") as file:
         file.write(binary)
-    dec=CV2_Russian(os.path.join(image_path, "test.jpg"))
+    dec=CV2_Russian(os.path.join(image_path, "test.jpg")) # название папки на Русском в названии мешало прочитать cv2 файл (это окалаось известный баг cv2)
     return dec
 def CV2_Russian(name):
+    """
+    Чтение картинки с русским названием в пути в cv2
     #https://answers.opencv.org/question/205345/imread-and-russian-language-path-to-img/
+    """
     f = open(name, "rb")
     chunk = f.read()
     chunk_arr = np.frombuffer(chunk, dtype=np.uint8)
