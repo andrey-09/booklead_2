@@ -4,13 +4,20 @@ import json
 import os
 import re
 import urllib.parse
-
+import asyncio
+from aiohttp import ClientSession
+import numpy as np
+import nest_asyncio
+from util import CV2_Russian, BinaryToDecimal,number_of_images, Postprocess
+import cv2
+import random
 import img2pdf
 from bs4 import BeautifulSoup
-
+import sys
 from util import get_logger
 from util import md5_hex, to_float, cut_bom, perror, progress, ptext, safe_file_name, Browser, select_one_text_optional
-from util import select_one_text_required, select_one_attr_required, gwar_fix_json
+from util import select_one_text_required, select_one_attr_required, gwar_fix_json,mkdirs_for_regular_file
+from util import user_agents
 
 log = get_logger(__name__)
 
@@ -22,8 +29,8 @@ eshplDl_params = {
 }
 
 prlDl_params = {
-    'ext': 'jpg'
-}
+    'ext': 'jpg' }
+ 
 
 bro: Browser
 
@@ -48,25 +55,53 @@ def saveImage(url, img_id, folder, ext, referer):
     bro.download(url, image_path, headers, content_type=expected_ct, skip_if_file_exists=True)
 
 
+
+async def fetch_image(url: str, i,queue,headers):
+    async with ClientSession() as session:
+        async with session.get(url, headers=headers) as response:
+            result = (i, await response.read())
+            await queue.put(result)
+           
+async def async_images(url,num,headers):
+    global results_prlDl
+    results_prlDl=[]
+    
+    queue = asyncio.Queue()
+    headers = headers
+    headers.update({'User-Agent': random.choice(user_agents)})
+    async with asyncio.TaskGroup() as group:
+        for i in range(num):
+            group.create_task(fetch_image(url.format(i), i,queue,headers))
+    while not queue.empty():
+        results_prlDl.append(await queue.get())
+
+
 def eshplDl(url):
     ext = eshplDl_params['ext']
     quality = eshplDl_params['quality']
     domain = urllib.parse.urlsplit(url).netloc
 
     html_text = bro.get_text(url)
+    
     soup = BeautifulSoup(html_text, 'html.parser')
     title = select_one_text_optional(soup, 'title') or md5_hex(url)
     title = safe_file_name(title)
+    
     for script in soup.findAll('script'):
+        
+        
         st = str(script)
+        
         if 'initDocview' in st:
             book_json = json.loads(st[st.find('{"'): st.find(')')])
-    ptext(f' ─ Каталог для загрузки: {title}')
+    #print("HERE")
+    ptext(f' Каталог для загрузки: {title}')
+    #print("HERE")
     pages = book_json['pages']
     for idx, page in enumerate(pages):
         img_url = f'http://{domain}/pages/{page["id"]}/zooms/{quality}'
         saveImage(img_url, idx + 1, title, ext, url)
-        progress(f' ─ Прогресс: {idx + 1} из {len(pages)} стр.')
+        progress(f'  Прогресс: {idx + 1} из {len(pages)} стр.')
     return title, ext
 
 
@@ -81,20 +116,43 @@ def prlDl(url):
     soup = BeautifulSoup(html_text, 'html.parser')
     title = select_one_text_optional(soup, 'h1') or md5_hex(url)
     title = safe_file_name(title)
-    ptext(f' ─ Каталог для загрузки: {title}')
+    #sys.stdout.write(title)
+    ptext(f'Каталог для загрузки: {title}')
+    
     for script in soup.findAll('script'):
         st = str(script)
         if 'jQuery.extend' in st:
             book_json = json.loads(st[st.find('{"'): st.find(');')])
-            book = book_json['diva']['1']['options']
+            if "item" in url.split("prlib.ru/")[1]:   #case for https://www.prlib.ru/item/*** 
+                book = book_json['diva']['1']['options']
+            elif "node" in url.split("prlib.ru/")[1]:     #case for https://www.prlib.ru/node/***
+                book = book_json['diva']['settings']
     json_text = bro.get_text(book['objectData'])
     book_data = json.loads(json_text)
     pages = book_data['pgs']
     for idx, page in enumerate(pages):
-        img_url = 'https://content.prlib.ru/fcgi-bin/iipsrv.fcgi?FIF={}/{}&WID={}&CVT=jpeg'.format(
-            book['imageDir'], page['f'], page['d'][len(page['d']) - 1]['w'])
-        saveImage(img_url, idx + 1, title, ext, url)
-        progress(f' ─ Прогресс: {idx + 1} из {len(pages)} стр.')
+        
+        img_url = 'https://content.prlib.ru/fcgi-bin/iipsrv.fcgi?FIF={}/{}&JTL={},'.format(
+            book['imageDir'], page['f'], page['m'])
+        img_url+="{}"
+        width, height=number_of_images(page["d"][len(page['d']) - 1]['w'],page["d"][len(page['d']) - 1]['h'])
+        
+        image_short = '%05d.%s' % (idx+1, ext)
+        image_path = os.path.join(BOOK_DIR, title, image_short)
+        
+        if os.path.exists(image_path) and os.stat(image_path).st_size > 0:
+            log.info(f'Пропускаю скачанный файл: {image_path}')
+        else: 
+            mkdirs_for_regular_file(image_path)
+            headers = {'Referer': url}
+            nest_asyncio.apply()           
+            asyncio.run(async_images(img_url,width*height,headers))
+            global results_prlDl
+
+            Postprocess(results_prlDl,width,height, image_path)
+            
+        
+        progress(f'  Прогресс: {idx + 1} из {len(pages)} стр.')
     return title, ext
 
 
@@ -192,7 +250,7 @@ def gwarDL(url):
 
     book_dir = ('{}_{}'.format(book_id, title))[0:224]
 
-    ptext(f' ─ Каталог для загрузки: {book_dir}')
+    ptext(f' Каталог для загрузки: {book_dir}')
     request_headers = {'referer': url}
 
     json_text = bro.post_text(json_url, request_headers, request_data)
@@ -212,7 +270,7 @@ def gwarDL(url):
         img_url = 'https://cdn.gwar.mil.ru/imagesfww/{}'.format( # либо ...ru/imageloadfull/
             image_url)
         saveImage(img_url, idx + 1, book_dir, ext, 'https://gwar.mil.ru/')
-        progress(f' ─ Прогресс: {idx + 1} из {len(pages)} стр.')
+        progress(f'  Прогресс: {idx + 1} из {len(pages)} стр.')
     return title, ext
 
 
@@ -271,7 +329,7 @@ def main():
         for url in urls:
             load = download_book(url)
             if load and args.pdf.lower() in ['y', 'yes']:
-                progress(' ─ Создание PDF...')
+                progress('  Создание PDF...')
                 title, img_ext = load
                 img_folder_full = os.path.join(BOOK_DIR, title)
                 pdf_path = os.path.join(BOOK_DIR, f'{title}.pdf')

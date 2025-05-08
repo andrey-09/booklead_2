@@ -5,13 +5,14 @@ import errno
 import functools
 import hashlib
 import logging
+import numpy as np
 import os
 import random
 import re
 import shutil
 import sys
 import time
-
+import cv2
 import requests
 from bs4 import Tag
 from requests import Response
@@ -90,7 +91,45 @@ def mkdirs_for_regular_file(filename: str):
             if e.errno != errno.EEXIST:
                 raise
 
-
+def Postprocess(results_prlDl,width, height,image_path):
+    Total_Image=[i for i in range(len(results_prlDl))]
+    for item in results_prlDl:
+        Total_Image[item[0]]=BinaryToDecimal(item[1],os.path.dirname(image_path))
+   
+    os.remove(os.path.join(os.path.dirname(image_path), "test.jpg"))
+    regroup=[]
+    for h in range(height):
+        regroup.append(Total_Image[h*width:(h+1)*width])
+    im_h=cv2.vconcat([cv2.hconcat(item) for item in regroup])
+    
+    #cv2.imwrite(image_path, im_h) (doesn't work with Russian)
+    result, data = cv2.imencode('.jpg', im_h)
+    fh = open(image_path, 'wb')
+    fh.write(data)
+    fh.close()
+def number_of_images(width, height):
+    num_w=width//256
+    if width%256!=0:
+        num_w+=1
+    num_h=height//256
+    if height%256!=0:
+        num_h+=1
+    return int(num_w),int(num_h)  
+    
+def BinaryToDecimal(binary,image_path):
+    with open(os.path.join(image_path, "test.jpg"), "wb") as file:
+        file.write(binary)
+    dec=CV2_Russian(os.path.join(image_path, "test.jpg"))
+    return dec
+def CV2_Russian(name):
+    #https://answers.opencv.org/question/205345/imread-and-russian-language-path-to-img/
+    f = open(name, "rb")
+    chunk = f.read()
+    chunk_arr = np.frombuffer(chunk, dtype=np.uint8)
+    img = cv2.imdecode(chunk_arr, cv2.IMREAD_COLOR)
+    return img
+    
+    
 def cut_bom(s: str):
     bom = codecs.BOM_UTF8.decode("utf-8")
     return s[len(bom):] if s.startswith(bom) else s
