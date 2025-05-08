@@ -122,7 +122,7 @@ def prlDl(url):
     title = safe_file_name(title)
     ptext(f'Каталог для загрузки: {title}')
     
-    for script in soup.findAll('script'):
+    for script in soup.find_all('script'): #findAll deprecated
         st = str(script)
         if 'jQuery.extend' in st:
             book_json = json.loads(st[st.find('{"'): st.find(');')])
