@@ -100,9 +100,7 @@ def eshplDl(url):
         
         if 'initDocview' in st:
             book_json = json.loads(st[st.find('{"'): st.find(')')])
-    #print("HERE")
     ptext(f' Каталог для загрузки: {title}')
-    #print("HERE")
     pages = book_json['pages']
     for idx, page in enumerate(pages):
         img_url = f'http://{domain}/pages/{page["id"]}/zooms/{quality}'
