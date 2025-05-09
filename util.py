@@ -12,6 +12,7 @@ import re
 import shutil
 import sys
 import time
+import datetime
 import cv2
 import requests
 from bs4 import Tag
@@ -90,7 +91,11 @@ def mkdirs_for_regular_file(filename: str):
         except OSError as e:  # Guard against race condition
             if e.errno != errno.EEXIST:
                 raise
-
+def Time_Processing(timedelta):
+    """Чтоб время показывать
+    """
+    minutes, seconds = divmod(round(timedelta.total_seconds()), 60)
+    return minutes, seconds
 def Postprocess(results_prlDl,width, height,image_path):
     """
      Прохожу через бинарные данные в results_prlDl, ставлю их на правильные места в картинке исходной и вывожу все в файл, напртмер 0001.jpg
