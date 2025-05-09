@@ -6,9 +6,10 @@ import re
 import urllib.parse
 import asyncio
 from aiohttp import ClientSession
+import datetime
 import numpy as np
 import nest_asyncio
-from util import CV2_Russian, BinaryToDecimal,number_of_images, Postprocess
+from util import CV2_Russian, BinaryToDecimal,number_of_images, Postprocess, Time_Processing
 import cv2
 import random
 import img2pdf
@@ -133,6 +134,8 @@ def prlDl(url):
     json_text = bro.get_text(book['objectData'])
     book_data = json.loads(json_text)
     pages = book_data['pgs']
+    num_of_pages_down=0 #for the time prediction
+    start=datetime.datetime.now()#for the time prediction
     for idx, page in enumerate(pages):
         
         img_url = 'https://content.prlib.ru/fcgi-bin/iipsrv.fcgi?FIF={}/{}&JTL={},'.format(
@@ -148,6 +151,7 @@ def prlDl(url):
         #(т.к. метод у меня скачивания немного другой)
         if os.path.exists(image_path) and os.stat(image_path).st_size > 0:
             log.info(f'Пропускаю скачанный файл: {image_path}')
+            progress(f'  Прогресс: {idx + 1} из {len(pages)} стр. ')
         else: 
             mkdirs_for_regular_file(image_path)
             headers = {'Referer': url}
@@ -157,9 +161,13 @@ def prlDl(url):
             global results_prlDl
             # просессить все данные и в конце вывести картинку
             Postprocess(results_prlDl,width,height, image_path)
-            
-        
-        progress(f'  Прогресс: {idx + 1} из {len(pages)} стр.')
+            # Time Formatting/Prediction:
+            prog=datetime.datetime.now()-start
+            num_of_pages_down+=1
+            left=prog/num_of_pages_down*(len(pages)-(idx+1)) #based on the values before prediction
+            minutes, seconds = Time_Processing(left)
+            past_min, past_sec=Time_Processing(prog)
+            progress(f'  Прогресс: {idx + 1} из {len(pages)} стр. | Прошло (мин:сек): {past_min}:{past_sec} ;Осталось: {minutes}:{seconds} ')
     return title, ext
 
 
