@@ -166,7 +166,7 @@ def gwar_fix_json(s: str, a: bool = False) -> str:
     s = s.replace("'", '"')
     if a:
         # https://stackoverflow.com/questions/50947760/how-to-fix-json-key-values-without-double-quotes
-        s = re.sub("(\w+):", r'"\1":', s)
+        s = re.sub(r"(\w+):", r'"\1":', s) #added r: https://stackoverflow.com/questions/50504500/deprecationwarning-invalid-escape-sequence-what-to-use-instead-of-d 
     json_s = json.loads(s)
     return json_s
 
