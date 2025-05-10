@@ -57,7 +57,7 @@ def saveImage(url, img_id, folder, ext, referer):
 
 
 
-async def fetch_image(url: str, i,queue,headers):
+async def fetch_image(url: str, i,queue, headers):
     """ Не добавляйте в util.py, у меня тогда asyncio не работал (может баг на моей стороне)
     по url скачиваю картинку и добавляю в binary в queue asyncio
     """
@@ -65,20 +65,18 @@ async def fetch_image(url: str, i,queue,headers):
         async with session.get(url, headers=headers) as response:
             result = (i, await response.read())
             await queue.put(result)
-           
+            
 async def async_images(url,num,headers):
     """Не добавляйте в util.py, у меня тогда asyncio не работал (может баг на моей стороне)
     call every tile image to download in async mode (in the end, add binary with the image number to results_prlDl
     """
-    global results_prlDl
-    results_prlDl=[]
-    
+
     queue = asyncio.Queue()
-    headers = headers
-    headers.update({'User-Agent': random.choice(user_agents)})
     async with asyncio.TaskGroup() as group:
         for i in range(num):
             group.create_task(fetch_image(url.format(i), i,queue,headers))
+    global results_prlDl
+    results_prlDl=[]
     while not queue.empty():
         results_prlDl.append(await queue.get())
 
@@ -108,7 +106,7 @@ def eshplDl(url):
         saveImage(img_url, idx + 1, title, ext, url)
         progress(f'  Прогресс: {idx + 1} из {len(pages)} стр.')
     return title, ext
-
+    
 
 def prlDl(url):
     """
@@ -136,6 +134,7 @@ def prlDl(url):
     pages = book_data['pgs']
     num_of_pages_down=0 #for the time prediction
     start=datetime.datetime.now()#for the time prediction
+    headers = {'Referer': url}
     for idx, page in enumerate(pages):
         
         img_url = 'https://content.prlib.ru/fcgi-bin/iipsrv.fcgi?FIF={}/{}&JTL={},'.format(
@@ -154,13 +153,15 @@ def prlDl(url):
             progress(f'  Прогресс: {idx + 1} из {len(pages)} стр. ')
         else: 
             mkdirs_for_regular_file(image_path)
-            headers = {'Referer': url}
-            nest_asyncio.apply() # нужен только чтобы async работал нормально ( https://pypi.org/project/nest-asyncio/)
+            #nest_asyncio.apply() # нужен только чтобы async работал нормально в Jupyter ( https://pypi.org/project/nest-asyncio/)
             # получить все данные с картиники
+            headers.update({'User-Agent': random.choice(user_agents)})
             asyncio.run(async_images(img_url,width*height,headers))
+
             global results_prlDl
             # просессить все данные и в конце вывести картинку
             Postprocess(results_prlDl,width,height, image_path)
+            
             # Time Formatting/Prediction:
             prog=datetime.datetime.now()-start
             num_of_pages_down+=1
