@@ -17,7 +17,8 @@
 * gwar.mil.ru - информационный портал о первой мировой войне 1914-1918
 
 ## Запуск
-Все проверял на Python 3.11.11. Если запускаете не через бинарник, советую запускать в [virtualenv](https://docs.python.org/3/library/venv.html).
+Все проверял на Python 3.11.11. советую запускать в [virtualenv](https://docs.python.org/3/library/venv.html).  
+Бинарника пока не сделал, делаю...
 <!-- Для **Windows** доступны бинарные сборки в разделе [Releases](https://github.com/aliasn3t/booklead/releases)  -->
 Для запуска кода потребуется Python с модулями **img2pdf**, **requests**, **beautifulsoup4**, **aiohttp**, **img2pdf**, **nest_asyncio**, **numpy** и **opencv_python**.
 Установка модулей: `python3 -m pip install -r requirements.txt`  
