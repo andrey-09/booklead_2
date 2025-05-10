@@ -167,7 +167,7 @@ def prlDl(url):
             left=prog/num_of_pages_down*(len(pages)-(idx+1)) #based on the values before prediction
             minutes, seconds = Time_Processing(left)
             past_min, past_sec=Time_Processing(prog)
-            progress(f'  Прогресс: {idx + 1} из {len(pages)} стр. | Прошло (мин:сек): {past_min}:{past_sec} ;Осталось: {minutes}:{seconds} ')
+            progress(f'  Прогресс: {idx + 1} из {len(pages)} стр. | Прошло (мин:сек): {past_min}:{past_sec:02d} ;Осталось: {minutes}:{seconds:02d} ')
     return title, ext
 
 
