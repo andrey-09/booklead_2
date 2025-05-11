@@ -11,7 +11,7 @@
 
 ## Запуск
 
-Для **Windows** доступны бинарные сборки в разделе [Releases](https://github.com/aliasn3t/booklead/releases)  
+Для **Windows** доступны бинарные сборки в разделе [Releases](https://github.com/andrey-09/booklead_2.0/releases)  
 Для запуска кода потребуется Python с модулями **img2pdf**, **requests**, **beautifulsoup4**, **aiohttp**, **img2pdf**, **numpy**, **opencv_python** и **pillow**.
   
 Установка модулей: `python3 -m pip install -r requirements.txt`  
