@@ -20,6 +20,7 @@ from requests import Response
 from typing import Dict, Optional, Pattern, Union
 import json
 
+
 user_agents = [
     'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.78 Safari/537.36',
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36',
@@ -29,6 +30,7 @@ user_agents = [
     'Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.121 Safari/537.36',
     'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/44.0.2403.157 Safari/537.36',
     'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:49.0) Gecko/20100101 Firefox/49.0'
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36'
 ]
 
 
@@ -96,6 +98,7 @@ def Time_Processing(timedelta):
     """
     minutes, seconds = divmod(round(timedelta.total_seconds()), 60)
     return minutes, seconds
+
 def Postprocess(results_prlDl,width, height,image_path):
     """
      Прохожу через бинарные данные в results_prlDl, ставлю их на правильные места в картинке исходной и вывожу все в файл, напртмер 0001.jpg
