@@ -9,6 +9,9 @@
 - Оптимизировать PDF? (сейчас средний размер порядка 100 MB, с хорошей оптимизацией можно достичь 20) (отсюда например [Archive pdf](https://github.com/internetarchive/archive-pdf-tools))
 - добавить возможность параллельно заранить на нескольких корах (parallelizaton)
 - усокрить (возможно добавить asyncio ещё на некоторых местах -для других библиотек)
+### Полезные ресурсы:
+- https://help.archive.org/help/how-to-upload-scanned-images-to-make-a-book/
+- https://www.loc.gov/marc/umb/um01to06.html
 ------------
 ## Поддерживаемые ресурсы:
 
