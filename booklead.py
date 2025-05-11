@@ -5,10 +5,11 @@ import os
 import re
 import urllib.parse
 import asyncio
-from aiohttp import ClientSession
+from aiohttp import ClientSession,TCPConnector, ClientTimeout
 import datetime
+import time
 import numpy as np
-import nest_asyncio
+#import nest_asyncio #used for debugging
 from util import CV2_Russian, BinaryToDecimal,number_of_images, Postprocess, Time_Processing
 import cv2
 import random
@@ -19,7 +20,7 @@ from util import get_logger
 from util import md5_hex, to_float, cut_bom, perror, progress, ptext, safe_file_name, Browser, select_one_text_optional
 from util import select_one_text_required, select_one_attr_required, gwar_fix_json,mkdirs_for_regular_file
 from util import user_agents
-
+import logging
 log = get_logger(__name__)
 
 BOOK_DIR = 'books'
@@ -31,7 +32,25 @@ eshplDl_params = {
 
 prlDl_params = {
     'ext': 'jpg' }
- 
+
+headers_pr1 = {
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Cache-Control': 'max-age=0',
+    'Connection': 'keep-alive',
+    'If-Modified-Since': 'Tue, 20 Dec 2016 02:17:59 GMT',
+    'Sec-Fetch-Dest': 'document',
+    'Sec-Fetch-Mode': 'navigate',
+    'Sec-Fetch-Site': 'none',
+    'Sec-Fetch-User': '?1',
+    'Upgrade-Insecure-Requests': '1',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
+    'dnt': '1',
+    'sec-ch-ua': '"Chromium";v="136", "Google Chrome";v="136", "Not.A/Brand";v="99"',
+    'sec-ch-ua-mobile': '?0',
+    'sec-ch-ua-platform': '"Windows"',
+    'sec-gpc': '1',
+}
 
 bro: Browser
 
@@ -55,32 +74,33 @@ def saveImage(url, img_id, folder, ext, referer):
     expected_ct = re.compile('image/')
     bro.download(url, image_path, headers, content_type=expected_ct, skip_if_file_exists=True)
 
-
-
-async def fetch_image(url: str, i,queue, headers):
+async def fetch_image(url: str, i,queue, headers_pr1, sem):
     """ Не добавляйте в util.py, у меня тогда asyncio не работал (может баг на моей стороне)
     по url скачиваю картинку и добавляю в binary в queue asyncio
     """
-    async with ClientSession() as session:
-        async with session.get(url, headers=headers) as response:
-            result = (i, await response.read())
-            await queue.put(result)
-            
-async def async_images(url,num,headers):
+    async with sem:
+        async with ClientSession(headers=headers_pr1,timeout=ClientTimeout(total=5),trust_env=True) as session: #,trust_env=True
+            async with session.get(url) as response:
+                result = (i, await response.read())
+                await queue.put(result)
+                
+async def async_images(url,num,headers_pr1):
     """Не добавляйте в util.py, у меня тогда asyncio не работал (может баг на моей стороне)
     call every tile image to download in async mode (in the end, add binary with the image number to results_prlDl
     """
-
+    
+    sem = asyncio.Semaphore(100)##https://stackoverflow.com/questions/63347818/aiohttp-client-exceptions-clientconnectorerror-cannot-connect-to-host-stackover
     queue = asyncio.Queue()
-    async with asyncio.TaskGroup() as group:
+    async with asyncio.TaskGroup() as group: #https://blog.csdn.net/y662225dd/article/details/135273140
         for i in range(num):
-            group.create_task(fetch_image(url.format(i), i,queue,headers))
+            headers_pr1.update({'User-Agent': random.choice(user_agents)})
+            group.create_task(fetch_image(url.format(i), i,queue,headers_pr1,sem))
+
     global results_prlDl
     results_prlDl=[]
     while not queue.empty():
         results_prlDl.append(await queue.get())
-
-
+        
 def eshplDl(url):
     ext = eshplDl_params['ext']
     quality = eshplDl_params['quality']
@@ -134,7 +154,6 @@ def prlDl(url):
     pages = book_data['pgs']
     num_of_pages_down=0 #for the time prediction
     start=datetime.datetime.now()#for the time prediction
-    headers = {'Referer': url}
     for idx, page in enumerate(pages):
         
         img_url = 'https://content.prlib.ru/fcgi-bin/iipsrv.fcgi?FIF={}/{}&JTL={},'.format(
@@ -154,11 +173,26 @@ def prlDl(url):
         else: 
             mkdirs_for_regular_file(image_path)
             #nest_asyncio.apply() # нужен только чтобы async работал нормально в Jupyter ( https://pypi.org/project/nest-asyncio/)
-            # получить все данные с картиники
-            headers.update({'User-Agent': random.choice(user_agents)})
-            asyncio.run(async_images(img_url,width*height,headers))
-
+            # получить все данные с картиники:
+            global headers_pr1
+            headers_pr1.update({'Referer': url})
+            
+            flag=True #для проверки на хороший requests
             global results_prlDl
+            while flag: #just keep quering the connection
+                try:
+                    
+                    asyncio.run(async_images(img_url,width*height,headers_pr1)) #Downgrade to 3.6.2  #Using Python 3.8 https://blog.csdn.net/y662225dd/article/details/135273140
+                    #loop = asyncio.get_event_loop() #for old version of aiohttp: 3.6.2
+                    #loop.run_until_complete(async_images(img_url,width*height,headers))
+                except Exception as Argument:  #Error coding
+                    time.sleep(1.0)
+
+                    logging.exception("Error occurred in ASYNCIO") 
+                else:
+                    if len(results_prlDl)!=0:
+                        flag=False
+
             # просессить все данные и в конце вывести картинку
             Postprocess(results_prlDl,width,height, image_path)
             

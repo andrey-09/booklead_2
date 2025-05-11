@@ -12,7 +12,7 @@
 ## Запуск
 
 Для **Windows** доступны бинарные сборки в разделе [Releases](https://github.com/aliasn3t/booklead/releases)  
-Для запуска кода потребуется Python с модулями **img2pdf**, **requests**, **beautifulsoup4**, **aiohttp**, **img2pdf**, **nest_asyncio**, **numpy** и **opencv_python**.
+Для запуска кода потребуется Python с модулями **img2pdf**, **requests**, **beautifulsoup4**, **aiohttp**, **img2pdf**, **numpy**, **opencv_python** и **pillow**.
   
 Установка модулей: `python3 -m pip install -r requirements.txt`  
 
