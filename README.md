@@ -61,15 +61,16 @@ xxxxxxxxxxxxxxxx
 
 ## Запуск (еще протестить)
 Все проверял на Python 3.12.10. советую запускать в [virtualenv](https://docs.python.org/3/library/venv.html).  
-Для запуска кода потребуется Python с модулями
+Для запуска кода потребуется Python с модулями  
 `aiohttp==3.9.5
-beautifulsoup4==4.13.4
-img2pdf==0.6.1
-internetarchive==5.2.1
-numpy==2.2.5
-opencv_python==4.11.0.86
-Requests==2.31.0
-transliterate==1.10.2` 
+beautifulsoup4==4.13.4   
+img2pdf==0.6.1    
+internetarchive==5.2.1    
+numpy==2.2.5   
+opencv_python==4.11.0.86   
+Requests==2.31.0   
+transliterate==1.10.2`     
+
 Установка модулей: `python -m pip install -r requirements.txt`  
 Бинарника нормального пока не сделал. он оч большой получается, 100 МБ, кто умеет делать более оптимизированный, киньте. я пытался через pyinstalller.
 
