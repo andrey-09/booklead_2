@@ -11,7 +11,7 @@
 * gwar.mil.ru - информационный портал о первой мировой войне 1914-1918
   ### TO-DO: Добавить еще поддержку:
 - https://runivers.ru
-- 
+- http://books.omsklib.ru/ (библиотека работает очень легко, например [Вот книга в читалке](http://books.omsklib.ru/Knigi/NEW/Viskovatov_Ocherki_Sibir/index.html), и в той же папке и [PDF](http://books.omsklib.ru/Knigi/NEW/Viskovatov_Ocherki_Sibir/Viskovatov_Ocherki_Sibir.pdf) - даже скрипт не нужен
 ## Добавленные фичи в v2.0: 
 - поддержка *prlib.ru*
   - (1-2 секунды страница в качества 3kx2k. Если качество еще больше, то где-то 2-3 сек)
