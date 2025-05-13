@@ -19,7 +19,7 @@ from bs4 import Tag
 from requests import Response
 from typing import Dict, Optional, Pattern, Union
 import json
-
+from random import randrange
 
 user_agents = [
     'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.78 Safari/537.36',
@@ -51,7 +51,7 @@ def _setup_logging():
     file_handler = logging.FileHandler(LOG_FILE, encoding='utf-8')
     file_handler.setFormatter(log_formatter)
     root_logger.addHandler(file_handler)
-
+    logging.basicConfig(filemode='w') 
     if os.getenv('LOGTOCONSOLE', '0') == '1':
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setFormatter(log_formatter)
@@ -65,6 +65,9 @@ def get_logger(name=None):
 
 
 log = get_logger(__name__)
+
+
+
 
 
 def perror(msg):
@@ -98,6 +101,79 @@ def Time_Processing(timedelta):
     """
     minutes, seconds = divmod(round(timedelta.total_seconds()), 60)
     return minutes, seconds
+def fetch_metadata(url, title):
+        #fetch metadata:
+    from bs4 import BeautifulSoup
+    import requests
+
+    html_text =requests.get(url).text
+    soup = BeautifulSoup(html_text, 'html.parser')
+    if url.split("https://")[1][4:9]=="prlib": #prlib.ru metadata
+        authors=soup.find("ul",{"class":"field field-name-field-book-author field-type-taxonomy-term-reference field-label-hidden"})
+        author_=[]
+        try:
+            for author in authors.find_all("a"):
+                author_.append(author.text)
+        except:
+            author_=""
+        description=""
+        for desc in soup.find("div",{"class":"field field-name-field-book-bd field-type-text-long field-label-hidden"}).find_all("td")[2:][:-1]:
+            description+=desc.get_text(strip=True).replace("\n","")+"\n"
+    return {
+        "creator" : author_,
+        "language" : "Russian",
+        "mediatype" : "texts",
+        "scanner" : "Internet Archive Python library 3.0.0",
+        "title" : title,
+        "description":   description
+        }
+def archive_ia(title, url, metadata):
+    """
+    Function to upload the downloaded book to archvie.org, with all the metadata needed
+    """
+    import transliterate 
+    import internetarchive
+    #secret data:
+    with open("personal_data.txt","r") as file:
+        session=file.read().splitlines()
+        
+    sesssion = {'access': 'qJaX9KKXhXkzoN5o', 'secret': 'mmI4XUkxM9O8gZ15'}
+    
+    #make preparations llike renameing, moving, zipping:
+    new_title=transliterate.translit(title, reversed=True).replace(" ","")[:40]+str(randrange(99))+"_"
+    new_title = re.sub(r'[^a-zA-Z0-9_]', '', new_title) #remove all special characters
+    
+    #check, whether a file is already there (because it was already tried before)
+    #import glob
+    #if glob.glob('books\\'+new_title[:-2]+'*.zip'):
+    os.rename("books\\"+title, "books\\"+new_title)
+    root="books\\"+new_title
+    for dir, subdirs, files in os.walk(root):
+        for f in files:
+            f_new = new_title+ f
+            os.rename(os.path.join(root, f), os.path.join(root, f_new))
+
+    shutil.make_archive(root,
+                        'zip',
+                        root)
+    new_name=root+"_images.zip"
+    os.rename(root+".zip", new_name) #https://help.archive.org/help/how-to-upload-scanned-images-to-make-a-book/
+    
+    #creating data and transferring Data to Server:
+    try:
+        internetarchive.upload(new_title, new_name, metadata, verbose=True,retries=20, retries_sleep =3, queue_derive=True,access_key=session[0], secret_key=session[1])
+    except Exception as Argument:
+        logging.exception("Error occurred in Ineren archvie upload") 
+    os.rename("books\\"+new_title,"books\\"+title) #rename folder
+    os.remove(new_name) #delete zip
+    #rename the files back:
+    root="books\\"+title
+    for dir, subdirs, files in os.walk(root):
+        for f in files:
+            f_new = f.replace(new_title,"")
+            os.rename(os.path.join(root, f), os.path.join(root, f_new))
+    
+
 
 def Postprocess(results_prlDl,width, height,image_path):
     """
