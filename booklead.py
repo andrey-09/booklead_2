@@ -10,7 +10,7 @@ import datetime
 import time
 import numpy as np
 #import nest_asyncio #used for debugging
-from util import CV2_Russian, BinaryToDecimal,number_of_images, Postprocess, Time_Processing,archive_ia, fetch_metadata
+from util import CV2_Russian, BinaryToDecimal,number_of_images, Postprocess, Time_Processing,archive_ia, fetch_metadata, CheckArchiveForWrites
 import cv2
 import random
 import img2pdf
@@ -467,11 +467,13 @@ def worker(file_urls,i):
             file.truncate()
             # start writing lines except the first line
             if len(urls)!=1:
-                file.writelines(urls[1:])
+                file.write('\n'.join(urls[1:]))
             continue
         #sys.stdout.write(load)
         log.info(f'Thread {i} finished downloading')
-        if args.archive and not STOP_break: #archive all photos:
+        if args.archive and not STOP_break:
+            #archive all photos:
+    
             #fetch metadata:
             metadata=fetch_metadata(url, load[0])
             archive_ia(load[0],url,metadata) #archive the book
@@ -490,7 +492,7 @@ def worker(file_urls,i):
         file.truncate()
         # start writing lines except the first line
         if len(urls)!=1:
-            file.writelines(urls[1:])
+            file.write('\n'.join(urls[1:]))
         file.close()
     log.info(f'Thread {i} is FINISHED!')
             
@@ -508,6 +510,7 @@ def main():
 
         log.info('Программа стартовала')
         urls = collect_urls()
+        
         ptext(f'Ссылок для загрузки: {len(urls)}')
         pause = 0
         if args.pause:
@@ -534,8 +537,7 @@ def main():
                 else:
                     with open(f"urls_{i}.txt", "w") as file:
                         file.write('\n'.join(urls[koef*i:koef*(i+1)]))
-                
-                
+                       
         for i in range(Cores):
             threads.append(threading.Thread(target=worker, args=(f"urls_{i}.txt",i,)))
             
@@ -543,14 +545,18 @@ def main():
             threads[i].start()
             log.info(f'Thread {i} is starting')
         try:
-            while not all([ threads[i].is_alive() for i in range(Cores)]):
-                time.sleep(1)
+            while any([ threads[i].is_alive() for i in range(Cores)]):
+                time.sleep(120)
+                
+                #check for the submitted url to be on archive.org (if archive selected and mark it in excel)
+                if args.archive:
+                    CheckArchiveForWrites(urls)
             
         except KeyboardInterrupt:
             perror(' Загрузка прервана пользователем')
          
             STOP_break=True
-            
+          
         for i in range(Cores): #it waits for everything to finish
             threads[i].join()
     except Exception as e:

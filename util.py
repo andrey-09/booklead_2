@@ -12,7 +12,6 @@ import re
 import shutil
 import sys
 import time
-import datetime
 import cv2
 import requests
 from bs4 import Tag
@@ -20,7 +19,11 @@ from requests import Response
 from typing import Dict, Optional, Pattern, Union
 import json
 from random import randrange
-
+import csv
+import transliterate 
+import internetarchive
+from internetarchive.session import ArchiveSession
+from internetarchive import search_items
 user_agents = [
     'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.78 Safari/537.36',
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36',
@@ -116,23 +119,54 @@ def fetch_metadata(url, title):
                 author_.append(author.text)
         except:
             author_=""
+            
         description=""
         for desc in soup.find("div",{"class":"field field-name-field-book-bd field-type-text-long field-label-hidden"}).find_all("td")[2:][:-1]:
             description+=desc.get_text(strip=True).replace("\n","")+"\n"
+        #collection+catalog form a subject:
+        #Catalogs
+        subjects=[]
+        catalogs=soup.find_all(class_="df-bbk")
+        if len(catalogs)!=0:
+            for subject in catalogs[0].find_all("li"):
+                subjects.append(subject.text.strip())
+        
+        #Collections: #ADD THEM to DESCRIPTION
+        subject_set=[]
+        collections=soup.find_all(class_="df-relations")
+        if len(collections)!=0:
+            for subject in collections[0].find_all("li"):
+                description+=subject.text+"\n"
+                for element in subject.text.split(" → ")[:-2]:
+                    subject_set.append(element)
+        subjects=subjects+list(dict.fromkeys(subject_set))
+        
+        #add "date" after the data is scrapped
+        #search by date in .csv?
+        
+        dataset="PrLib_Dataset.csv"
+        #adding date
+        date=""
+        if os.path.exists(dataset):
+            with open(dataset, mode ='r',encoding="utf-8")as file:
+              csvFile = csv.reader(file)
+              for lines in csvFile:
+                    if url==lines[2]:
+                        date=lines[0]
     return {
         "creator" : author_,
         "language" : "Russian",
         "mediatype" : "texts",
-        "scanner" : "Internet Archive Python library 3.0.0",
         "title" : title,
-        "description":   description
+        "description":   description,
+        "subject":subjects,
+        "date":date
         }
 def archive_ia(title, url, metadata):
     """
     Function to upload the downloaded book to archvie.org, with all the metadata needed
     """
-    import transliterate 
-    import internetarchive
+
     #secret data:
     with open("personal_data.txt","r") as file:
         session=file.read().splitlines()
@@ -140,7 +174,7 @@ def archive_ia(title, url, metadata):
     sesssion = {'access': 'qJaX9KKXhXkzoN5o', 'secret': 'mmI4XUkxM9O8gZ15'}
     
     #make preparations llike renameing, moving, zipping:
-    new_title=transliterate.translit(title, reversed=True).replace(" ","")[:40]+str(randrange(99))+"_"
+    new_title=transliterate.translit(title, "ru",reversed=True).replace(" ","")[:40]+str(randrange(99))+"_"
     new_title = re.sub(r'[^a-zA-Z0-9_]', '', new_title) #remove all special characters
     
     #check, whether a file is already there (because it was already tried before)
@@ -173,7 +207,37 @@ def archive_ia(title, url, metadata):
             f_new = f.replace(new_title,"")
             os.rename(os.path.join(root, f), os.path.join(root, f_new))
     
-
+def CheckArchiveForWrites(urls):
+    """
+    Function to check, whether a book is written to archive.org and update Excel (for keeping track of records)
+    """
+    all_titles=[]
+    datafile="Prlib_1600-1800.csv"
+    with open(datafile, mode ='r',encoding="utf-8")as file:
+        csvFile = csv.reader(file)
+        for lines in csvFile:
+            for url in urls:
+                if url==lines[2] and lines[3]!="1": 
+                    
+                    all_titles.append(lines[1]) #write all titles to search for
+    
+    s = ArchiveSession()
+    today=datetime.datetime.today().strftime('%Y-%m-%d')
+    search = s.search_items('uploader:"pavelserebrjanyi@gmail.com"', fields=["title"])
+    for title in all_titles:
+        for result in search:
+            if result["title"] in title: #so, there is a common thing; change the csv value:
+                
+                with open(datafile,"r", encoding='utf-8') as csvfile: #read the place, where to put value
+                    f = csv.reader(csvfile)
+                    data=list(f)
+                    title_column=[i[1] for i in data]
+                    ind=title_column.index(title)
+                    data[ind][3]=1
+                    
+                with open(datafile, 'w', newline='', encoding='utf-8') as file: #put the value
+                    writer = csv.writer(file)
+                    writer.writerows(data)
 
 def Postprocess(results_prlDl,width, height,image_path):
     """
