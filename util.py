@@ -174,7 +174,7 @@ def archive_ia(title, url, metadata):
     sesssion = {'access': 'qJaX9KKXhXkzoN5o', 'secret': 'mmI4XUkxM9O8gZ15'}
     
     #make preparations llike renameing, moving, zipping:
-    new_title=transliterate.translit(title, "ru",reversed=True).replace(" ","")[:40]+str(randrange(99))+"_"
+    new_title=transliterate.translit(title, "ru",reversed=True).replace(" ","")[:40]+str(randrange(99))
     new_title = re.sub(r'[^a-zA-Z0-9_]', '', new_title) #remove all special characters
     
     #check, whether a file is already there (because it was already tried before)
