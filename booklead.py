@@ -468,6 +468,7 @@ def worker(file_urls,i):
             # start writing lines except the first line
             if len(urls)!=1:
                 file.write('\n'.join(urls[1:]))
+                file.write('\n'+urls[0])
             continue
         #sys.stdout.write(load)
         log.info(f'Thread {i} finished downloading')
@@ -476,7 +477,20 @@ def worker(file_urls,i):
     
             #fetch metadata:
             metadata=fetch_metadata(url, load[0])
-            archive_ia(load[0],url,metadata) #archive the book
+            try:
+                archive_ia(load[0],url,metadata) #archive the book
+            except:
+                #if an error, skip to the next one
+                #delete the first LINE from the NOTEPAD
+                file.seek(0)
+                # truncate the file
+                file.truncate()
+                # start writing lines except the first line
+                if len(urls)!=1:
+                    file.write('\n'.join(urls[1:]))
+                    file.write('\n'+urls[0])
+                file.close()
+                continue
             log.info(f'Thread {i} archived the book')
         if load and args.pdf.lower() in ['y', 'yes'] and not STOP_break:
             progress('  Создание PDF...')
@@ -546,7 +560,7 @@ def main():
             log.info(f'Thread {i} is starting')
         try:
             while any([ threads[i].is_alive() for i in range(Cores)]):
-                time.sleep(120)
+                time.sleep(300)
                 
                 #check for the submitted url to be on archive.org (if archive selected and mark it in excel)
                 if args.archive:
