@@ -570,7 +570,7 @@ def main():
             perror(' Загрузка прервана пользователем')
          
             STOP_break=True
-          
+        CheckArchiveForWrites(urls)  
         for i in range(Cores): #it waits for everything to finish
             threads[i].join()
     except Exception as e:
