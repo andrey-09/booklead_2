@@ -104,7 +104,7 @@ def Time_Processing(timedelta):
     """
     minutes, seconds = divmod(round(timedelta.total_seconds()), 60)
     return minutes, seconds
-def fetch_metadata(url, title):
+def fetch_metadata(url):
         #fetch metadata:
     from bs4 import BeautifulSoup
     import requests
@@ -112,6 +112,7 @@ def fetch_metadata(url, title):
     html_text =requests.get(url).text
     soup = BeautifulSoup(html_text, 'html.parser')
     if url.split("https://")[1][4:9]=="prlib": #prlib.ru metadata
+        title = soup.head.title.text.split("|")[0]
         authors=soup.find("ul",{"class":"field field-name-field-book-author field-type-taxonomy-term-reference field-label-hidden"})
         author_=[]
         try:

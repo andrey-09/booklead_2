@@ -209,11 +209,12 @@ def prlDl(url):
     ext = prlDl_params['ext']
     html_text = bro.get_text(url)
     soup = BeautifulSoup(html_text, 'html.parser')
-    title = select_one_text_optional(soup, 'h1') or md5_hex(url)
+    title = soup.head.title.text.split("|")[0]
     title = safe_file_name(title)
     #get the number of characters in the current path
     num_of_characters=150-len(os.path.abspath(os.getcwd()))
-    title=title[:num_of_characters] + title[-15:]#to have the volume part in the name
+    if len(title)>165:
+        title=title[:num_of_characters] + title[-15:]#to have the volume part in the name
     
     log.info(f'Каталог для загрузки: {title}')
     
@@ -480,7 +481,7 @@ def worker(file_urls,i):
             #archive all photos:
     
             #fetch metadata:
-            metadata=fetch_metadata(url, load[0])
+            metadata=fetch_metadata(url)
             try:
                 archive_ia(load[0],url,metadata) #archive the book
             except:
