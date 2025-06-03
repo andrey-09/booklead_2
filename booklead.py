@@ -480,9 +480,10 @@ def worker(file_urls,i):
         if args.archive and not STOP_break:
             #archive all photos:
     
-            #fetch metadata:
-            metadata=fetch_metadata(url)
+
             try:
+                #fetch metadata:
+                metadata=fetch_metadata(url)
                 archive_ia(load[0],url,metadata) #archive the book
             except:
                 #if an error, skip to the next one
