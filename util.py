@@ -122,8 +122,10 @@ def fetch_metadata(url):
             author_=""
             
         description=""
-        for desc in soup.find("div",{"class":"field field-name-field-book-bd field-type-text-long field-label-hidden"}).find_all("td")[3:][:-1]:
-            description+=desc.get_text(strip=True).replace("\n","")+"\n"
+        td_check=soup.find("div",{"class":"field field-name-field-book-bd field-type-text-long field-label-hidden"}).find_all("td")
+        if len(td_check)!=0: #check for zero td
+            for desc in td_check[3:][:-1]:
+                description+=desc.get_text(strip=True).replace("\n","")+"\n"
         #collection+catalog form a subject:
         #Catalogs
         subjects=[]
