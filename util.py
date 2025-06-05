@@ -126,8 +126,8 @@ def fetch_metadata(url):
         description=""
         td_check=soup.find("div",{"class":"field field-name-field-book-bd field-type-text-long field-label-hidden"}).find_all("td")
         if len(td_check)!=0: #check for zero td
-            for desc in td_check[2:][:-1]:
-                if desc.td is None:
+            for desc in td_check[1:][:-1]:
+                if desc.td is None and desc.get_text(strip=True)!="":
                     description+=desc.get_text(strip=True).replace("\n","")+"\n"
         #collection+catalog form a subject:
         #Catalogs
@@ -146,7 +146,7 @@ def fetch_metadata(url):
                 for element in subject.text.split(" → ")[:-2]:
                     subject_set.append(element)
         subjects=subjects+list(dict.fromkeys(subject_set))
-        
+        description+="\n"+url+"\n"
         #language detection:
         lang=detect(title)
         dict_lang={"de":"German", "en":"English"}
@@ -283,13 +283,16 @@ def Postprocess(results_prlDl,width, height,image_path):
     regroup=[]
     for h in range(height):
         regroup.append(Total_Image[h*width:(h+1)*width])
-    im_h=cv2.vconcat([cv2.hconcat(item) for item in regroup])
-    
+    try:
+        im_h=cv2.vconcat([cv2.hconcat(item) for item in regroup])
+    except:
+        return False
     #cv2.imwrite(image_path, im_h) (doesn't work with Russian)
     result, data = cv2.imencode('.jpg', im_h)
     fh = open(image_path, 'wb')
     fh.write(data)
     fh.close()
+    return True
 def number_of_images(width, height):
     """
     получаю кол-во картинок по ширине и длине (возможно можно в одну строчку как-то:)

@@ -238,7 +238,11 @@ def prlDl(url):
     num_of_pages_down=0 #for the time prediction
     start=datetime.datetime.now()#for the time prediction
     global STOP_break
-    for idx, page in enumerate(pages):
+    counter=0 #check the pages
+    while counter<len(pages):
+        idx=counter
+        page=pages[counter]
+        #force downloading every page, if error REPEAT
         if STOP_break:
             break
         img_url = 'https://content.prlib.ru/fcgi-bin/iipsrv.fcgi?FIF={}/{}&JTL={},'.format(
@@ -270,7 +274,7 @@ def prlDl(url):
                     #loop = asyncio.get_event_loop() #for old version of aiohttp: 3.6.2
                     #loop.run_until_complete(async_images(img_url,width*height,headers))
                 except Exception as Argument:  #Error coding
-                    time.sleep(1.0)
+                    time.sleep(2.)
 
                     log.exception("Error occurred in ASYNCIO") 
                 else:
@@ -279,7 +283,9 @@ def prlDl(url):
                         flag=False
 
             # просессить все данные и в конце вывести картинку
-            Postprocess(results_prlDl,width,height, image_path)
+            if Postprocess(results_prlDl,width,height, image_path):
+              counter+=1
+              num_of_pages_down+=1
             
             # Time Formatting/Prediction:
             prog=datetime.datetime.now()-start
