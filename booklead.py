@@ -24,6 +24,7 @@ import logging
 import threading
 import requests
 
+
 log = get_logger(__name__)
 BOOK_DIR = 'books'
 
@@ -273,6 +274,7 @@ def prlDl(url):
 
                     log.exception("Error occurred in ASYNCIO") 
                 else:
+                    time.sleep(1.0)
                     if len(results_prlDl)!=0 and len(results_prlDl)==width*height:
                         flag=False
 
@@ -442,7 +444,7 @@ def collect_urls():
     if args.url:
         urls.append(args.url)
     if args.list:
-        with open(args.list) as fp:
+        with open(args.list, encoding="utf-8") as fp:
             urls.extend([line.strip() for line in fp])
     return list(
         filter(lambda x: not x.startswith('#'),
@@ -506,12 +508,13 @@ def worker(file_urls,i):
             makePdf(pdf_path, img_folder_full, img_ext)
             ptext(f' - Файл сохранён: {pdf_path}')
         log.info(f'Thread {i} is DONE with the book')
-        #delete the first LINE from the NOTEPAD
-        file.seek(0)
-        # truncate the file
-        file.truncate()
-        # start writing lines except the first line
-        if len(urls)!=1:
+        if len(urls)!=1 and not STOP_break:
+            #delete the first LINE from the NOTEPAD
+            file.seek(0)
+            # truncate the file
+            file.truncate()
+            # start writing lines except the first line
+        
             file.write('\n'.join(urls[1:]))
         file.close()
     log.info(f'Thread {i} is FINISHED!')
@@ -569,14 +572,14 @@ def main():
                 time.sleep(300)
                 
                 #check for the submitted url to be on archive.org (if archive selected and mark it in excel)
-                if args.archive:
-                    CheckArchiveForWrites(urls)
+                #if args.archive:
+                #    CheckArchiveForWrites(urls)
             
         except KeyboardInterrupt:
             perror(' Загрузка прервана пользователем')
          
             STOP_break=True
-        CheckArchiveForWrites(urls)  
+        #CheckArchiveForWrites(urls)  
         for i in range(Cores): #it waits for everything to finish
             threads[i].join()
     except Exception as e:

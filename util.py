@@ -14,6 +14,7 @@ import sys
 import time
 import cv2
 import requests
+import threading
 from bs4 import Tag
 from requests import Response
 from typing import Dict, Optional, Pattern, Union
@@ -24,6 +25,7 @@ import transliterate
 import internetarchive
 from internetarchive.session import ArchiveSession
 from internetarchive import search_items
+from langdetect import detect #language detection
 user_agents = [
     'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.78 Safari/537.36',
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36',
@@ -36,7 +38,7 @@ user_agents = [
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36'
 ]
 
-
+lock=threading.Lock()
 LOG_FILE = 'log.txt'
 logging_set_up = False
 
@@ -145,6 +147,14 @@ def fetch_metadata(url):
                     subject_set.append(element)
         subjects=subjects+list(dict.fromkeys(subject_set))
         
+        #language detection:
+        lang=detect(title)
+        dict_lang={"de":"German", "en":"English"}
+        if lang in list(dict_lang.keys()):
+            language=dict_lang[lang]
+        else:
+            language="Russian"
+        
         #add "date" after the data is scrapped
         #search by date in .csv?
         
@@ -158,13 +168,15 @@ def fetch_metadata(url):
                     if url==lines[2]:
                         date=lines[0]
     return {
+        "collection":["russian-online-libraries"],
         "creator" : author_,
-        "language" : "Russian",
+        "language" : language,
         "mediatype" : "texts",
         "title" : title,
         "description":   description,
         "subject":subjects,
         "date":date
+       # "source": url
         }
 def archive_ia(title, url, metadata):
     """
@@ -175,11 +187,11 @@ def archive_ia(title, url, metadata):
     with open("personal_data.txt","r") as file:
         session=file.read().splitlines()
         
-    sesssion = {'access': 'qJaX9KKXhXkzoN5o', 'secret': 'mmI4XUkxM9O8gZ15'}
     
     #make preparations llike renameing, moving, zipping:
     new_title=transliterate.translit(title, "ru",reversed=True).replace(" ","")[:40]+str(randrange(99))
     new_title = re.sub(r'[^a-zA-Z0-9_]', '', new_title) #remove all special characters
+    new_title=new_title.lower()
     
     #check, whether a file is already there (because it was already tried before)
     #import glob
@@ -202,6 +214,21 @@ def archive_ia(title, url, metadata):
         internetarchive.upload(new_title, new_name, metadata, verbose=True,retries=20, retries_sleep =3, queue_derive=True,access_key=session[0], secret_key=session[1])
     except Exception as Argument:
         logging.exception("Error occurred in Ineren archvie upload") 
+    else:
+        #change the value to 1 in excel:
+        datafile="Prlib_1801-1900.csv"
+        with lock:
+            with open(datafile,"r", encoding='utf-8') as csvfile: #read the place, where to put value
+                f = csv.reader(csvfile)
+                data=list(f)
+                title_column=[i[1] for i in data]
+                ind=title_column.index(title)
+                data[ind][3]=1
+                
+            with open(datafile, 'w', newline='', encoding='utf-8') as file: #put the value
+                writer = csv.writer(file)
+                writer.writerows(data)
+        
     os.rename("books\\"+new_title,"books\\"+title) #rename folder
     os.remove(new_name) #delete zip
     #rename the files back:
@@ -214,9 +241,10 @@ def archive_ia(title, url, metadata):
 def CheckArchiveForWrites(urls):
     """
     Function to check, whether a book is written to archive.org and update Excel (for keeping track of records)
+    takes a lot of time and unneccesary
     """
     all_titles=[]
-    datafile="Prlib_1801-1870.csv"
+    datafile="Prlib_1801-1900.csv"
     with open(datafile, mode ='r',encoding="utf-8")as file:
         csvFile = csv.reader(file)
         for lines in csvFile:
@@ -227,7 +255,7 @@ def CheckArchiveForWrites(urls):
     
     s = ArchiveSession()
     today=datetime.datetime.today().strftime('%Y-%m-%d')
-    search = s.search_items('uploader:"pavelserebrjanyi@gmail.com"', fields=["title"])
+    search = s.search_items('uploader:"pavelserebrjanyi@gmail.com" AND addeddate:'+today, fields=["title"])
     for title in all_titles:
         for result in search:
             if result["title"] in title: #so, there is a common thing; change the csv value:
