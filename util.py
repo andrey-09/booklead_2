@@ -115,6 +115,10 @@ def fetch_metadata(url):
     soup = BeautifulSoup(html_text, 'html.parser')
     if url.split("https://")[1][4:9]=="prlib": #prlib.ru metadata
         title = soup.head.title.text.split("|")[0]
+        full_title=title
+        if len(title)>210:
+            end_on_space=" ".join(title[:210].split(" ")[:-1])
+            title=end_on_space+" ..."
         authors=soup.find("ul",{"class":"field field-name-field-book-author field-type-taxonomy-term-reference field-label-hidden"})
         author_=[]
         try:
@@ -146,7 +150,6 @@ def fetch_metadata(url):
                 for element in subject.text.split(" → ")[:-2]:
                     subject_set.append(element)
         subjects=subjects+list(dict.fromkeys(subject_set))
-        description+="\n"+url+"\n"
         #language detection:
         lang=detect(title)
         dict_lang={"de":"German", "en":"English"}
@@ -173,10 +176,11 @@ def fetch_metadata(url):
         "language" : language,
         "mediatype" : "texts",
         "title" : title,
+        "Full_title": full_title,
         "description":   description,
         "subject":subjects,
-        "date":date
-       # "source": url
+        "date":date,
+        "Source_url": url
         }
 def archive_ia(title, url, metadata):
     """
@@ -214,6 +218,14 @@ def archive_ia(title, url, metadata):
         internetarchive.upload(new_title, new_name, metadata, verbose=True,retries=20, retries_sleep =3, queue_derive=True,access_key=session[0], secret_key=session[1])
     except Exception as Argument:
         logging.exception("Error occurred in Ineren archvie upload") 
+        os.rename("books\\"+new_title,"books\\"+title) #rename folder
+        os.remove(new_name) #delete zip
+        #rename the files back:
+        root="books\\"+title
+        for dir, subdirs, files in os.walk(root):
+            for f in files:
+                f_new = f.replace(new_title,"")
+                os.rename(os.path.join(root, f), os.path.join(root, f_new))
     else:
         #change the value to 1 in excel:
         datafile="Prlib_1801-1900.csv"
@@ -228,15 +240,12 @@ def archive_ia(title, url, metadata):
             with open(datafile, 'w', newline='', encoding='utf-8') as file: #put the value
                 writer = csv.writer(file)
                 writer.writerows(data)
+        os.remove(new_name) #delete zip
+        #delete the folder:
+        root="books\\"+new_title
+        shutil.rmtree(root)
         
-    os.rename("books\\"+new_title,"books\\"+title) #rename folder
-    os.remove(new_name) #delete zip
-    #rename the files back:
-    root="books\\"+title
-    for dir, subdirs, files in os.walk(root):
-        for f in files:
-            f_new = f.replace(new_title,"")
-            os.rename(os.path.join(root, f), os.path.join(root, f_new))
+
     
 def CheckArchiveForWrites(urls):
     """
@@ -285,10 +294,11 @@ def Postprocess(results_prlDl,width, height,image_path):
         regroup.append(Total_Image[h*width:(h+1)*width])
     try:
         im_h=cv2.vconcat([cv2.hconcat(item) for item in regroup])
+
+    #cv2.imwrite(image_path, im_h) (doesn't work with Russian)
+        result, data = cv2.imencode('.jpg', im_h)
     except:
         return False
-    #cv2.imwrite(image_path, im_h) (doesn't work with Russian)
-    result, data = cv2.imencode('.jpg', im_h)
     fh = open(image_path, 'wb')
     fh.write(data)
     fh.close()

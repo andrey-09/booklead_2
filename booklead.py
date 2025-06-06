@@ -235,7 +235,7 @@ def prlDl(url):
     json_text = bro.get_text(book['objectData'])
     book_data = json.loads(json_text)
     pages = book_data['pgs']
-    num_of_pages_down=0 #for the time prediction
+    num_of_pages_down=1 #for the time prediction
     start=datetime.datetime.now()#for the time prediction
     global STOP_break
     counter=0 #check the pages
@@ -258,6 +258,7 @@ def prlDl(url):
         #(т.к. метод у меня скачивания немного другой)
         if os.path.exists(image_path) and os.stat(image_path).st_size > 0:
             log.info(f'Пропускаю скачанный файл: {image_path}')
+            counter+=1
             #progress(f'  Прогресс: {idx + 1} из {len(pages)} стр. ')
         else: 
             mkdirs_for_regular_file(image_path)
@@ -289,7 +290,6 @@ def prlDl(url):
             
             # Time Formatting/Prediction:
             prog=datetime.datetime.now()-start
-            num_of_pages_down+=1
             left=prog/num_of_pages_down*(len(pages)-(idx+1)) #based on the values before prediction
             minutes, seconds = Time_Processing(left)
             past_min, past_sec=Time_Processing(prog)
@@ -575,7 +575,7 @@ def main():
             log.info(f'Thread {i} is starting')
         try:
             while any([ threads[i].is_alive() for i in range(Cores)]):
-                time.sleep(300)
+                time.sleep(10)
                 
                 #check for the submitted url to be on archive.org (if archive selected and mark it in excel)
                 #if args.archive:
