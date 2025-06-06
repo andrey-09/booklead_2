@@ -38,7 +38,7 @@ user_agents = [
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36'
 ]
 
-
+Google_Drive_Path="drive/MyDrive/Books_download/"
 LOG_FILE = 'log.txt'
 logging_set_up = False
 
@@ -162,8 +162,8 @@ def fetch_metadata(url):
         
         #add "date" after the data is scrapped
         #search by date in .csv?
-        
-        dataset="drive/MyDrive/PrLib_Dataset.csv"
+        global Google_Drive_Path
+        dataset=Google_Drive_Path+"PrLib_Dataset.csv"
         #adding date
         date=""
         if os.path.exists(dataset):
@@ -188,9 +188,9 @@ def archive_ia(title, url, metadata):
     """
     Function to upload the downloaded book to archvie.org, with all the metadata needed
     """
-
+    global Google_Drive_Path
     #secret data:
-    with open("drive/MyDrive/personal_data.txt","r") as file:
+    with open(Google_Drive_Path+"personal_data.txt","r") as file:
         session=file.read().splitlines()
         
     

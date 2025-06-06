@@ -73,7 +73,7 @@ headers_eph1 = {
 }
 
 bro: Browser
-
+Google_Drive_Path="drive/MyDrive/Books_download/"
 
 def makePdf(pdf_path, img_folder, img_ext):
     img_list = []
@@ -528,11 +528,12 @@ def worker(file_urls,i):
 def main():
     try:
         global bro
-        if args.archive and not os.path.exists("drive/MyDrive/personal_data.txt"): #personal infroamtion for archive.org
+        global Google_Drive_Path
+        if args.archive and not os.path.exists(Google_Drive_Path+"personal_data.txt"): #personal infroamtion for archive.org
             sys.stdout.write("Вы хотите закачать на сервер archive.org Нужны входные данные\n")
             access_key=input("Your S3 access key: ")
             secret_key=input("Your S3 secret key: ")
-            with open("drive/MyDrive/personal_data.txt", "w") as file:
+            with open(Google_Drive_Path+"personal_data.txt", "w") as file:
                 file.write(access_key+"\n"+secret_key)
         
 
@@ -560,14 +561,14 @@ def main():
      
             for i in range(Cores):
                 if i==Cores-1:
-                    with open(f"drive/MyDrive/{args.thread}/urls_{i}.txt", "w") as file:
+                    with open(f"{Google_Drive_Path}{args.thread}/urls_{i}.txt", "w") as file:
                         file.write('\n'.join(urls[koef*i:]))
                 else:
-                    with open(f"drive/MyDrive/{args.thread}/urls_{i}.txt", "w") as file:
+                    with open(f"{Google_Drive_Path}{args.thread}/urls_{i}.txt", "w") as file:
                         file.write('\n'.join(urls[koef*i:koef*(i+1)]))
                        
         for i in range(Cores):
-            threads.append(threading.Thread(target=worker, args=(f"drive/MyDrive/{args.thread}/urls_{i}.txt",i,)))
+            threads.append(threading.Thread(target=worker, args=(f"{Google_Drive_Path}{args.thread}/urls_{i}.txt",i,)))
             
         for i in range(Cores):
             threads[i].start()
