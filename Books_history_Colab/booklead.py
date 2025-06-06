@@ -528,7 +528,7 @@ def worker(file_urls,i):
 def main():
     try:
         global bro
-        if args.archive and not os.path.exists("personal_data.txt"): #personal infroamtion for archive.org
+        if args.archive and not os.path.exists("drive/MyDrive/personal_data.txt"): #personal infroamtion for archive.org
             sys.stdout.write("Вы хотите закачать на сервер archive.org Нужны входные данные\n")
             access_key=input("Your S3 access key: ")
             secret_key=input("Your S3 secret key: ")
