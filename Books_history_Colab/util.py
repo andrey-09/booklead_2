@@ -226,8 +226,9 @@ def archive_ia(title, url, metadata):
         root="books/"+title
         shutil.rmtree(root)
         raise Exception("Error wiht UPLOAD")
-            os.rename("books/"+new_title,"books/"+title) #rename folder
+        
     else:
+        os.rename("books/"+new_title,"books/"+title) #rename folder
         os.remove(new_name) #delete zip
         #rename the files back:
         root="books/"+title                     

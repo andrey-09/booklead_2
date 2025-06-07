@@ -108,9 +108,9 @@ async def fetch_image_download(url: str, i, headers_pr1, sem,title):
     async with sem:
         async with ClientSession(headers=headers_pr1,timeout=ClientTimeout(total=8),trust_env=True) as session: #,trust_env=True
             async with session.get(url) as response:
-                with open(BOOK_DIR+"\\"+title+"\\images\\"+str(i)+".jpg","wb") as file:
+                with open(os.path.join(BOOK_DIR,title,"images",str(i)+".jpg"),"wb") as file:
                     file.write(await response.read())
-                                       
+                                     
                 
                 
 async def async_images_download(url,nums,headers_pr1,title):
