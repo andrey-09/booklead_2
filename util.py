@@ -35,7 +35,10 @@ user_agents = [
     'Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.121 Safari/537.36',
     'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/44.0.2403.157 Safari/537.36',
     'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:49.0) Gecko/20100101 Firefox/49.0'
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36'
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36 Edg/134.0.0.0',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Safari/605.1.15',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:135.0) Gecko/20100101 Firefox/135.0'
 ]
 
 lock=threading.Lock()
@@ -106,12 +109,12 @@ def Time_Processing(timedelta):
     """
     minutes, seconds = divmod(round(timedelta.total_seconds()), 60)
     return minutes, seconds
-def fetch_metadata(url):
+def fetch_metadata(url,headers_pr2):
         #fetch metadata:
     from bs4 import BeautifulSoup
     import requests
 
-    html_text =requests.get(url).text
+    html_text =requests.get(url,headers=headers_pr2).text
     soup = BeautifulSoup(html_text, 'html.parser')
     if url.split("https://")[1][4:9]=="prlib": #prlib.ru metadata
         title = soup.head.title.text.split("|")[0]
@@ -228,22 +231,24 @@ def archive_ia(title, url, metadata):
                 os.rename(os.path.join(root, f), os.path.join(root, f_new))
     else:
         #change the value to 1 in excel:
+        os.remove(new_name) #delete zip
+        #delete the folder:
+        root="books\\"+new_title
+        shutil.rmtree(root)
+        
         datafile="Prlib_1801-1900.csv"
         with lock:
             with open(datafile,"r", encoding='utf-8') as csvfile: #read the place, where to put value
                 f = csv.reader(csvfile)
                 data=list(f)
-                title_column=[i[1] for i in data]
-                ind=title_column.index(title)
+                url_column=[i[2] for i in data]
+                ind=url_column.index(metadata["Source_url"])
                 data[ind][3]=1
                 
             with open(datafile, 'w', newline='', encoding='utf-8') as file: #put the value
                 writer = csv.writer(file)
                 writer.writerows(data)
-        os.remove(new_name) #delete zip
-        #delete the folder:
-        root="books\\"+new_title
-        shutil.rmtree(root)
+
         
 
     

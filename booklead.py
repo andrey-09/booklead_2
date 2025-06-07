@@ -23,6 +23,7 @@ from util import user_agents
 import logging
 import threading
 import requests
+from user_agent import generate_user_agent
 
 
 log = get_logger(__name__)
@@ -38,7 +39,8 @@ prlDl_params = {
 
 headers_pr1 = {
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-    'Accept-Language': 'en-US,en;q=0.9',
+    "Accept-Encoding": "gzip, deflate, br, zstd", 
+    "Accept-Language": "en-GB,en-US;q=0.9,en;q=0.8,ru;q=0.7",
     'Cache-Control': 'max-age=0',
     'Connection': 'keep-alive',
     'If-Modified-Since': 'Tue, 20 Dec 2016 02:17:59 GMT',
@@ -46,14 +48,19 @@ headers_pr1 = {
     'Sec-Fetch-Mode': 'navigate',
     'Sec-Fetch-Site': 'none',
     'Sec-Fetch-User': '?1',
+    'Sec-Gpc':'1',
     'Upgrade-Insecure-Requests': '1',
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
     'dnt': '1',
-    'sec-ch-ua': '"Chromium";v="136", "Google Chrome";v="136", "Not.A/Brand";v="99"',
+    'sec-ch-ua': '"Chromium";v="137", "Google Chrome";v="137", "Not/A)Brand";v="24"',
     'sec-ch-ua-mobile': '?0',
     'sec-ch-ua-platform': '"Windows"',
     'sec-gpc': '1',
+    'Host':'content.prlib.ru',
+    'Origin':'https://content.prlib.ru'
 }
+headers_pr2=headers_pr1 
+headers_pr2.update({"Host":"www.prlib.ru","Origin": "https://www.prlib.ru"})
 headers_eph1 = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
     "Accept-Encoding": "gzip, deflate, br, zstd",
@@ -98,12 +105,14 @@ async def fetch_image(url: str, i,queue, headers_pr1, sem):
     """ Не добавляйте в util.py, у меня тогда asyncio не работал (может баг на моей стороне)
     по url скачиваю картинку и добавляю в binary в queue asyncio
     """
+    #time.sleep(1)
     async with sem:
-        async with ClientSession(headers=headers_pr1,timeout=ClientTimeout(total=5),trust_env=True) as session: #,trust_env=True
+        
+        async with ClientSession(headers=headers_pr1,timeout=ClientTimeout(total=6),trust_env=True) as session: #,trust_env=True
             async with session.get(url) as response:
                 result = (i, await response.read())
                 await queue.put(result)
-                
+            
 async def async_images(url,num,headers_pr1):
     """Не добавляйте в util.py, у меня тогда asyncio не работал (может баг на моей стороне)
     call every tile image to download in async mode (in the end, add binary with the image number to results_prlDl
@@ -113,7 +122,7 @@ async def async_images(url,num,headers_pr1):
     queue = asyncio.Queue()
     async with asyncio.TaskGroup() as group: #https://blog.csdn.net/y662225dd/article/details/135273140
         for i in range(num):
-            headers_pr1.update({'User-Agent': random.choice(user_agents)})
+            headers_pr1.update({'User-Agent': generate_user_agent(os='win',device_type ='desktop',navigator='chrome')})
             group.create_task(fetch_image(url.format(i), i,queue,headers_pr1,sem))
 
     global results_prlDl
@@ -190,8 +199,8 @@ def eshplDl(url):
         try:
             asyncio.run(async_images_eshp1D1(img_url_list, headers_eph1_list,image_path_list))
         except Exception as Argument:  #Error coding
-                    time.sleep(1.0)
-                    log.exception("Error occurred in ASYNCIO") 
+            time.sleep(5.0)
+            log.exception("Error occurred in ASYNCIO") 
         else:
             lst = os.listdir(os.path.join(BOOK_DIR, title)) # your directory path
             
@@ -208,7 +217,9 @@ def prlDl(url):
     Пример урла книги (HTML) - https://www.prlib.ru/item/420931
     """
     ext = prlDl_params['ext']
-    html_text = bro.get_text(url)
+    global headers_pr2
+    global headers_pr1
+    html_text = requests.get(url, headers=headers_pr2).text
     soup = BeautifulSoup(html_text, 'html.parser')
     title = soup.head.title.text.split("|")[0]
     title = safe_file_name(title)
@@ -232,7 +243,7 @@ def prlDl(url):
             except:
                 log.exception("Error, NOTHING FOUND!")
                 return
-    json_text = bro.get_text(book['objectData'])
+    json_text = bro.get_text(book['objectData'],headers=headers_pr2)
     book_data = json.loads(json_text)
     pages = book_data['pgs']
     num_of_pages_down=1 #for the time prediction
@@ -264,7 +275,7 @@ def prlDl(url):
             mkdirs_for_regular_file(image_path)
             #nest_asyncio.apply() # нужен только чтобы async работал нормально в Jupyter ( https://pypi.org/project/nest-asyncio/)
             # получить все данные с картиники:
-            global headers_pr1
+            #global headers_pr1
             headers_pr1.update({'Referer': url})
             
             flag=True #для проверки на хороший requests
@@ -275,9 +286,9 @@ def prlDl(url):
                     #loop = asyncio.get_event_loop() #for old version of aiohttp: 3.6.2
                     #loop.run_until_complete(async_images(img_url,width*height,headers))
                 except Exception as Argument:  #Error coding
-                    time.sleep(2.)
+                    time.sleep(2)
 
-                    log.exception("Error occurred in ASYNCIO") 
+                    #log.exception("Error occurred in ASYNCIO") 
                 else:
                     time.sleep(1.0)
                     if len(results_prlDl)!=0 and len(results_prlDl)==width*height:
@@ -491,7 +502,7 @@ def worker(file_urls,i):
 
             try:
                 #fetch metadata:
-                metadata=fetch_metadata(url)
+                metadata=fetch_metadata(url, headers_pr2)
                 archive_ia(load[0],url,metadata) #archive the book
             except:
                 #if an error, skip to the next one

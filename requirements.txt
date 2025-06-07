@@ -8,3 +8,4 @@ Requests==2.31.0
 transliterate==1.10.2
 pillow==11.2.1
 langdetect==1.0.9
+user-agent==0.1.10
