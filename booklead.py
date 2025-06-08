@@ -26,6 +26,7 @@ import threading
 import requests
 from internetarchive import search_items
 
+lock = threading.Lock()
 
 log = get_logger(__name__)
 BOOK_DIR = 'books'
@@ -102,52 +103,48 @@ def saveImage(url, img_id, folder, ext, referer):
     expected_ct = re.compile('image/')
     bro.download(url, image_path, headers, content_type=expected_ct, skip_if_file_exists=True)
 
-async def fetch_image_download(url: str, i, headers_pr1, sem,title,images_folder):
+async def fetch_image_download(url: str, i, headers_pr1_local, sem,title,images_folder):
     """ Не добавляйте в util.py, у меня тогда asyncio не работал (может баг на моей стороне)
     по url скачиваю картинку и добавляю в file
     """
     #proxies:https://github.com/hamzarana07/multiProxies/tree/main
     async with sem:
-        async with ClientSession(headers=headers_pr1,timeout=ClientTimeout(total=8),trust_env=True) as session: #,trust_env=True
+        async with ClientSession(headers=headers_pr1_local,timeout=ClientTimeout(total=8),trust_env=True) as session: #,trust_env=True
             async with session.get(url) as response:
                 with open(os.path.join(images_folder,str(i)+".jpg"),"wb") as file:
                     file.write(await response.read())
                 
                 
-async def async_images_download(sem1,url,nums,headers_pr1,title,images_folder,image_path,width,height):
+async def async_images_download(sem1,url,nums,headers_pr1_local,title,images_folder,image_path,width,height):
     """
     Async downloader
     """
+
     #for each IMAGE
     sem = asyncio.Semaphore(70)##https://stackoverflow.com/questions/63347818/aiohttp-client-exceptions-clientconnectorerror-cannot-connect-to-host-stackover
     #queue = asyncio.Queue()
+    global STOP_break
     async with sem1: #https://blog.csdn.net/y662225dd/article/details/135273140
         for i in nums: #doing it for Every url of subimages:
             flag=True #just keep quering the connections (Until ALL IMAGES ARE PRESENT
             while flag:  #while check for a complete download:
-                global STOP_break
+                
                 if STOP_break:
                     return
-                headers_pr1.update({'User-Agent': generate_user_agent(os='win',device_type ='desktop',navigator='chrome') })
+                headers_pr1_local.update({'User-Agent': generate_user_agent(os='win',device_type ='desktop',navigator='chrome') })
                 try: #catching error here
-                    await fetch_image_download(url.format(i), i,headers_pr1,sem,title,images_folder)
+                    await fetch_image_download(url.format(i), i,headers_pr1_local,sem,title,images_folder)
                 except Exception as Argument:
                     log.exception("Error occurred in ASYNCIO")
                     await asyncio.sleep(4)
                 else:
-                    flag=False
-    #if it's all done, check for each image quality:
-    check=False
+                    #check for image size:
+                    if os.path.getsize(os.path.join(images_folder, str(i)+".jpg"))!=0:
+                        flag=False
+    
+    #Double check on the number of items:
     lst=os.listdir(images_folder)
     if len(lst)==width*height:
-        check=True
-    #check for each file to be non empty:
-    for file in lst:
-        if os.path.getsize(os.path.join(images_folder, file))==0:
-            os.remove(os.path.join(images_folder, file))
-            check*=False
-        #else: check stays True
-    if check: 
         #after download of all images create the BIG ONE:
         await Postprocess(images_folder,width,height, image_path)
  
@@ -163,6 +160,8 @@ async def PresLib_Main_Download(pages,book, title,url):
     data={}
 
     counter=0 #check the pages
+    global headers_pr1
+    headers_pr1_local=headers_pr1
     while counter<len(pages): # CREATE the DATA for Download + create FOLDER strcuture
         idx=counter
         page=pages[counter]
@@ -175,7 +174,7 @@ async def PresLib_Main_Download(pages,book, title,url):
         width, height=number_of_images(page["d"][len(page['d']) - 1]['w'],page["d"][len(page['d']) - 1]['h']) 
         image_short = '%05d.%s' % (idx+1, "jpg")
         image_path = os.path.join(BOOK_DIR, title, image_short)
-        headers_pr1.update({'Referer': url})
+        headers_pr1_local.update({'Referer': url})
         #created the DATA
         #check for what was ALREADY DOWNLOADED
         if os.path.exists(image_path) and os.stat(image_path).st_size > 0:
@@ -197,7 +196,7 @@ async def PresLib_Main_Download(pages,book, title,url):
                     good_nums.append(num)
             nums=good_nums   
             counter+=1
-            data[idx]=[img_url,image_path,images_folder,headers_pr1,nums,width, height] 
+            data[idx]=[img_url,image_path,images_folder,headers_pr1_local,nums,width, height] 
     
     #DOWNLOAD the LEFT images: 
     try:
@@ -300,7 +299,6 @@ def prlDl(url):
     """
     ext = prlDl_params['ext']
     global headers_pr2
-    global headers_pr1
     html_text = requests.get(url, headers=headers_pr2).text
     
     soup = BeautifulSoup(html_text, 'html.parser')
@@ -326,15 +324,25 @@ def prlDl(url):
             except:
                 log.exception("Error, NOTHING FOUND!")
                 return
-    json_text = bro.get_text(book['objectData'],headers=headers_pr2)
+    try:
+        json_text = bro.get_text(book['objectData'],headers=headers_pr2)
+    except:
+        log.exception("Error, NOTHING FOUND!")
+        return  
     book_data = json.loads(json_text)
     pages = book_data['pgs']
     # run asyncio:
     #nest_asyncio.apply()
     asyncio.run(PresLib_Main_Download(pages, book, title,url))
-            
-    return title, ext
-
+    
+    #check for the number of images downloaded:
+    director=os.path.join(BOOK_DIR, title)
+    lst=os.listdir(director)
+    
+    if len(lst)==len(pages):
+        return title, ext
+    else:
+        return 0
 
 def unatlib_download(url):
     """
@@ -508,21 +516,27 @@ def worker(file_urls,i):
         
         if args.archive: #do NOT download duplicates
             #search, whether it was already downloaded
-            items=search_items('uploader:"pavelserebrjanyi@gmail.com" AND source_url:"'+url+'"')
-            count=0
-            for item in items:
-                count+=1
-            if count>0:
-                
-                #delete the first LINE from the NOTEPAD
-                file.seek(0)
-                # truncate the file
-                file.truncate()
-                # start writing lines except the first line
-                if len(urls)==1:
-                    break
-                file.write('\n'.join(urls[1:]))
-                continue
+            try:
+                items=search_items('uploader:"pavelserebrjanyi@gmail.com" AND source_url:"'+url+'"')
+            except:
+                #servers are overloaded
+                with lock:
+                    args.archive=0
+            else:
+                count=0
+                for item in items:
+                    count+=1
+                if count>0:
+                    
+                    #delete the first LINE from the NOTEPAD
+                    file.seek(0)
+                    # truncate the file
+                    file.truncate()
+                    # start writing lines except the first line
+                    if len(urls)==1:
+                        break
+                    file.write('\n'.join(urls[1:]))
+                    continue
         
         if STOP_break:
             break
@@ -611,6 +625,7 @@ def main():
         #create urls:
         koef=len(urls)//Cores
         global STOP_break
+
         STOP_break=False # for stoppage
         
         #create new urls in files:

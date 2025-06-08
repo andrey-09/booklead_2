@@ -169,11 +169,12 @@ def fetch_metadata(url,headers_pr2):
         #adding date
         date=""
         if os.path.exists(dataset):
-            with open(dataset, mode ='r',encoding="utf-8")as file:
-              csvFile = csv.reader(file)
-              for lines in csvFile:
-                    if url==lines[2]:
-                        date=lines[0]
+            with lock:
+                with open(dataset, mode ='r',encoding="utf-8")as file:
+                  csvFile = csv.reader(file)
+                  for lines in csvFile:
+                        if url==lines[2]:
+                            date=lines[0]
     return {
         "collection":["russian-online-libraries"],
         "creator" : author_,
@@ -192,8 +193,9 @@ def archive_ia(title, url, metadata):
     """
 
     #secret data:
-    with open("personal_data.txt","r") as file:
-        session=file.read().splitlines()
+    with lock:
+        with open("personal_data.txt","r") as file:
+            session=file.read().splitlines()
         
     
     #make preparations llike renameing, moving, zipping:
@@ -219,7 +221,7 @@ def archive_ia(title, url, metadata):
     
     #creating data and transferring Data to Server:
     try:
-        internetarchive.upload(new_title, new_name, metadata, verbose=True,retries=20, retries_sleep =3, queue_derive=True,access_key=session[0], secret_key=session[1])
+        internetarchive.upload(new_title, new_name, metadata, verify=True,validate_identifier=True,verbose=True,retries=20, retries_sleep =3, queue_derive=True,access_key=session[0], secret_key=session[1])
     except Exception as Argument:
         logging.exception("Error occurred in Ineren archvie upload") 
         os.rename("books\\"+new_title,"books\\"+title) #rename folder
@@ -253,7 +255,7 @@ def archive_ia(title, url, metadata):
         
 
     
-def CheckArchiveForWrites(urls):
+def CheckArchiveForWrites(urls): #Not used
     """
     Function to check, whether a book is written to archive.org and update Excel (for keeping track of records)
     takes a lot of time and unneccesary
@@ -334,6 +336,7 @@ def CV2_Russian(name):
     chunk = f.read()
     chunk_arr = np.frombuffer(chunk, dtype=np.uint8)
     img = cv2.imdecode(chunk_arr, cv2.IMREAD_COLOR)
+    f.close()
     return img
     
     

@@ -184,6 +184,7 @@ def fetch_metadata(url,headers_pr2):
         "subject":subjects,
         "date":date,
         "Source_url": url
+        #"script_down":"Colab"
         }
 def archive_ia(title, url, metadata):
     """
@@ -191,8 +192,9 @@ def archive_ia(title, url, metadata):
     """
     global Google_Drive_Path
     #secret data:
-    with open(Google_Drive_Path+"personal_data.txt","r") as file:
-        session=file.read().splitlines()
+    with lock:          
+        with open(Google_Drive_Path+"personal_data.txt","r") as file:
+            session=file.read().splitlines()
         
     
     #make preparations llike renameing, moving, zipping:
@@ -216,7 +218,7 @@ def archive_ia(title, url, metadata):
     
     #creating data and transferring Data to Server:
     try:
-        internetarchive.upload(new_title, new_name, metadata, verbose=True,retries=20, retries_sleep =3, queue_derive=True,access_key=session[0], secret_key=session[1])
+        internetarchive.upload(new_title, new_name, metadata, verify=True,validate_identifier=True,verbose=True,retries=20, retries_sleep =3, queue_derive=True,access_key=session[0], secret_key=session[1])
     except Exception as Argument:
         logging.exception("Error occurred in Ineren archvie upload") 
     
@@ -314,6 +316,7 @@ def CV2_Russian(name):
     chunk = f.read()
     chunk_arr = np.frombuffer(chunk, dtype=np.uint8)
     img = cv2.imdecode(chunk_arr, cv2.IMREAD_COLOR)
+    f.close()         
     return img
     
     
