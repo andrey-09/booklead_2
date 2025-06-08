@@ -152,7 +152,7 @@ async def async_images_download(sem1,url,nums,headers_pr1,title,images_folder,im
     if check: 
         #after download of all images create the BIG ONE:
         await Postprocess(images_folder,width,height, image_path)
- async def PresLib_Main_Download(pages,book, title,url):
+async def PresLib_Main_Download(pages,book, title,url):
     """
     Супер быстрый загрузчик Президентской библиотеки
     Main function, where each url is created and it's later on passed to function to download each page
@@ -160,7 +160,7 @@ async def async_images_download(sem1,url,nums,headers_pr1,title,images_folder,im
     #num_of_pages_down=1 #for the time prediction
     #start=datetime.datetime.now()#for the time prediction
     # and pass the result for DOWNLOAD
-#ON ERROR CREATE THE DATA FOR DOWNLOAD::    
+    #ON ERROR CREATE THE DATA FOR DOWNLOAD::    
     data={}
 
     counter=0 #check the pages
@@ -565,11 +565,11 @@ def worker(file_urls,i):
             ptext(f' - Файл сохранён: {pdf_path}')
         log.info(f'Thread {i} is DONE with the book')
 
-            #delete the first LINE from the NOTEPAD
-            file.seek(0)
-            # truncate the file
-            file.truncate()
-            # start writing lines except the first line
+        #delete the first LINE from the NOTEPAD
+        file.seek(0)
+        # truncate the file
+        file.truncate()
+        # start writing lines except the first line
         if len(urls)!=1:        
             file.write('\n'.join(urls[1:]))
         file.close()
