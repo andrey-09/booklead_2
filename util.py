@@ -24,6 +24,7 @@ import csv
 import transliterate 
 import internetarchive
 from internetarchive.session import ArchiveSession
+from user_agent import generate_user_agent
 from internetarchive import search_items
 from langdetect import detect #language detection
 user_agents = [
@@ -285,15 +286,18 @@ def CheckArchiveForWrites(urls):
                     writer = csv.writer(file)
                     writer.writerows(data)
 
-def Postprocess(results_prlDl,width, height,image_path):
+async def Postprocess(images_folder,width, height,image_path):
     """
      Прохожу через бинарные данные в results_prlDl, ставлю их на правильные места в картинке исходной и вывожу все в файл, напртмер 0001.jpg
     """
-    Total_Image=[i for i in range(len(results_prlDl))]
-    for item in results_prlDl:
-        Total_Image[item[0]]=BinaryToDecimal(item[1],os.path.dirname(image_path))
-   
-    os.remove(os.path.join(os.path.dirname(image_path), "test.jpg"))
+    Total_Image=[i for i in range(width*height)]
+    #iterate through each file and add them:
+    for item in range(width*height):
+        #read from file:
+        Total_Image[item]=CV2_Russian(os.path.join(images_folder, str(item)+".jpg")) # название папки на Русском в названии мешало прочитать cv2 файл (это окалаось известный баг cv2)
+    #delete images folder:
+    shutil.rmtree(images_folder)
+    
     regroup=[]
     for h in range(height):
         regroup.append(Total_Image[h*width:(h+1)*width])
@@ -303,6 +307,7 @@ def Postprocess(results_prlDl,width, height,image_path):
     #cv2.imwrite(image_path, im_h) (doesn't work with Russian)
         result, data = cv2.imencode('.jpg', im_h)
     except:
+        
         return False
     fh = open(image_path, 'wb')
     fh.write(data)
@@ -319,15 +324,7 @@ def number_of_images(width, height):
     if height%256!=0:
         num_h+=1
     return int(num_w),int(num_h)  
-    
-def BinaryToDecimal(binary,image_path):
-    """
-    тупой вариант перевода binary в decimal для картинки. остальные способы казались слишком)
-    """
-    with open(os.path.join(image_path, "test.jpg"), "wb") as file:
-        file.write(binary)
-    dec=CV2_Russian(os.path.join(image_path, "test.jpg")) # название папки на Русском в названии мешало прочитать cv2 файл (это окалаось известный баг cv2)
-    return dec
+
 def CV2_Russian(name):
     """
     Чтение картинки с русским названием в пути в cv2
@@ -494,7 +491,7 @@ class Browser:
 
     def _prepare_headers(self, additional_headers: Dict):
         headers = additional_headers if additional_headers else {}
-        headers.update({'User-Agent': random.choice(user_agents)})
+        headers.update({'User-Agent': generate_user_agent(os='win',device_type ='desktop',navigator='chrome')})
         return headers
 
     def _validate_response(self, response: Response, url, expected_ct: Union[str, Pattern]):
