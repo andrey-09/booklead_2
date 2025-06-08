@@ -268,7 +268,7 @@ def CheckArchiveForWrites(urls):
                     writer = csv.writer(file)
                     writer.writerows(data)
 
-def Postprocess(images_folder,width, height,image_path):
+async def Postprocess(images_folder,width, height,image_path):
     """
      Прохожу через бинарные данные в results_prlDl, ставлю их на правильные места в картинке исходной и вывожу все в файл, напртмер 0001.jpg
     """
