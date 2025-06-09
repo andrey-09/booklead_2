@@ -103,51 +103,56 @@ def saveImage(url, img_id, folder, ext, referer):
     expected_ct = re.compile('image/')
     bro.download(url, image_path, headers, content_type=expected_ct, skip_if_file_exists=True)
 
-async def fetch_image_download(url: str, i, headers_pr1_local, sem,title,images_folder):
+async def fetch_image_download(url: str, i, headers_pr1_local, session,images_folder):
     """ Не добавляйте в util.py, у меня тогда asyncio не работал (может баг на моей стороне)
     по url скачиваю картинку и добавляю в file
     """
     #proxies:https://github.com/hamzarana07/multiProxies/tree/main
-    async with sem:
-        async with ClientSession(headers=headers_pr1_local,timeout=ClientTimeout(total=8),trust_env=True) as session: #,trust_env=True
-            async with session.get(url) as response:
-                with open(os.path.join(images_folder,str(i)+".jpg"),"wb") as file:
-                    file.write(await response.read())
+    async with session.get(url, headers=headers_pr1_local) as response:
+        if response.ok:  
+            with open(os.path.join(images_folder,str(i)+".jpg"),"wb") as file:
+                file.write(await response.read())
+        else:
+            log.info("Bad response from server "+str(response.status))
                 
-                
-async def async_images_download(sem1,url,nums,headers_pr1_local,title,images_folder,image_path,width,height):
+      
+async def async_images_download(semka,connections,url,nums,headers_pr1_local,images_folder,image_path,width,height):
     """
     Async downloader
-    """
-
+    """ 
     #for each IMAGE
-    sem = asyncio.Semaphore(70)##https://stackoverflow.com/questions/63347818/aiohttp-client-exceptions-clientconnectorerror-cannot-connect-to-host-stackover
-    #queue = asyncio.Queue()
     global STOP_break
-    async with sem1: #https://blog.csdn.net/y662225dd/article/details/135273140
-        for i in nums: #doing it for Every url of subimages:
-            flag=True #just keep quering the connections (Until ALL IMAGES ARE PRESENT
-            while flag:  #while check for a complete download:
+    sem1 = asyncio.Semaphore(connections)
+    async with semka: #https://docs.aiohttp.org/en/stable/client_quickstart.html
+        async with ClientSession(timeout=ClientTimeout(total=8),headers=headers_pr1_local,trust_env=True) as session:
+            for i in nums: #doing it for Every url of subimages:
                 
-                if STOP_break:
-                    return
-                headers_pr1_local.update({'User-Agent': generate_user_agent(os='win',device_type ='desktop',navigator='chrome') })
-                try: #catching error here
-                    await fetch_image_download(url.format(i), i,headers_pr1_local,sem,title,images_folder)
-                except Exception as Argument:
-                    log.exception("Error occurred in ASYNCIO")
-                    await asyncio.sleep(4)
-                else:
-                    #check for image size:
-                    if os.path.getsize(os.path.join(images_folder, str(i)+".jpg"))!=0:
-                        flag=False
+                flag=True #just keep quering the connections (Until ALL IMAGES ARE PRESENT)
+                while flag:  #while check for a complete download: 
+                    if STOP_break:
+                        return
+                    headers_pr1_local.update({'User-Agent': generate_user_agent(os='win',device_type ='desktop',navigator='chrome') })
+                    try: #catching error here
+                        async with sem1: 
+                            await asyncio.sleep(0.01)
+                            await fetch_image_download(url.format(i), i,headers_pr1_local,session,images_folder)
+                    except Exception as Argument:
+                        log.info("Error occurred in local asyncio (async images) - "+ images_folder)
+                        await asyncio.sleep(2)
+                    else:
+                        #check for image size:
+                        img=os.path.join(images_folder, str(i)+".jpg")
+                        if os.path.getsize(img)!=0:
+                            flag=False
     
     #Double check on the number of items:
     lst=os.listdir(images_folder)
     if len(lst)==width*height:
         #after download of all images create the BIG ONE:
-        await Postprocess(images_folder,width,height, image_path)
- 
+        if not await Postprocess(images_folder,width,height, image_path):
+            log.info("Processing image error - " + images_folder)
+                
+      
 async def PresLib_Main_Download(pages,book, title,url):
     """
     Супер быстрый загрузчик Президентской библиотеки
@@ -156,58 +161,87 @@ async def PresLib_Main_Download(pages,book, title,url):
     #num_of_pages_down=1 #for the time prediction
     #start=datetime.datetime.now()#for the time prediction
     # and pass the result for DOWNLOAD
-#ON ERROR CREATE THE DATA FOR DOWNLOAD::    
-    data={}
-
-    counter=0 #check the pages
-    global headers_pr1
-    headers_pr1_local=headers_pr1
-    while counter<len(pages): # CREATE the DATA for Download + create FOLDER strcuture
-        idx=counter
-        page=pages[counter]
-        #force downloading every page
-
-        img_url = 'https://content.prlib.ru/fcgi-bin/iipsrv.fcgi?FIF={}/{}&JTL={},'.format(
-            book['imageDir'], page['f'], page['m']) #поменял здесь немного вид урл, так как по частям качаю
-        # брал урл отсюда: https://iipimage.sourceforge.io/documentation/protocol
-        img_url+="{}"
-        width, height=number_of_images(page["d"][len(page['d']) - 1]['w'],page["d"][len(page['d']) - 1]['h']) 
-        image_short = '%05d.%s' % (idx+1, "jpg")
-        image_path = os.path.join(BOOK_DIR, title, image_short)
-        headers_pr1_local.update({'Referer': url})
-        #created the DATA
-        #check for what was ALREADY DOWNLOADED
-        if os.path.exists(image_path) and os.stat(image_path).st_size > 0:
-            log.info(f'Пропускаю скачанный файл: {image_path}')
-            counter+=1
-            #progress(f'  Прогресс: {idx + 1} из {len(pages)} стр. ')
-        else: 
-            #mkdirs_for_regular_file(image_path)
-            
-            images_folder=os.path.join(BOOK_DIR, title,"images"+str(counter))
-            nums=range(width*height)  
-            try:
-                os.makedirs(images_folder)
-            except FileExistsError:
-                pass  
-            good_nums=[] #check what subimages for each image are present
-            for num in nums:
-                if not (os.path.isfile(os.path.join(images_folder,str(num)+".jpg")) and os.path.getsize(os.path.join(images_folder,str(num)+".jpg"))!=0):
-                    good_nums.append(num)
-            nums=good_nums   
-            counter+=1
-            data[idx]=[img_url,image_path,images_folder,headers_pr1_local,nums,width, height] 
+#ON ERROR CREATE THE DATA FOR DOWNLOAD::
+    check=True #repeat 1-3 time to gather all the images
     
-    #DOWNLOAD the LEFT images: 
-    try:
-        #create SUBGROUP:
-        sem1 = asyncio.Semaphore(40)
-        async with asyncio.TaskGroup() as group1: #https://blog.csdn.net/y662225dd/article/details/135273140
+    count_loop=0
+    while check:
+        data={}
+
+        counter=0 #check the pages
+        global headers_pr1
+        headers_pr1_local=headers_pr1
+        while counter<len(pages): # CREATE the DATA for Download + create FOLDER strcuture
+            idx=counter
+            page=pages[counter]
+            #force downloading every page
+
+            img_url = 'https://content.prlib.ru/fcgi-bin/iipsrv.fcgi?FIF={}/{}&JTL={},'.format(
+                book['imageDir'], page['f'], page['m']) #поменял здесь немного вид урл, так как по частям качаю
+            # брал урл отсюда: https://iipimage.sourceforge.io/documentation/protocol
+            img_url+="{}"
+            width, height=number_of_images(page["d"][len(page['d']) - 1]['w'],page["d"][len(page['d']) - 1]['h']) 
+            image_short = '%05d.%s' % (idx+1, "jpg")
+            image_path = os.path.join(BOOK_DIR, title, image_short)
+            headers_pr1_local.update({'Referer': url})
+            #created the DATA
+            #check for what was ALREADY DOWNLOADED
+            if os.path.exists(image_path) and os.stat(image_path).st_size > 0:
+                log.info(f'Пропускаю скачанный файл: {image_path}')
+                counter+=1
+                #progress(f'  Прогресс: {idx + 1} из {len(pages)} стр. ')
+            else: 
+                #mkdirs_for_regular_file(image_path)
+                
+                images_folder=os.path.join(BOOK_DIR, title,"images"+str(counter))
+                nums=range(width*height)  
+                try:
+                    os.makedirs(images_folder)
+                except FileExistsError:
+                    pass  
+                good_nums=[] #check what subimages for each image are present
+                for num in nums:
+                    if not (os.path.isfile(os.path.join(images_folder,str(num)+".jpg")) and os.path.getsize(os.path.join(images_folder,str(num)+".jpg"))!=0):
+                        good_nums.append(num)
+                nums=good_nums   
+                counter+=1
+                data[idx]=[img_url,image_path,images_folder,headers_pr1_local,nums,width, height] 
+        
+        #DOWNLOAD the LEFT images: 
+        try:
+            #create All coroutines to Run:
+            global Cores #Total amount of connections: number_of_images_huge*nums*Cores
+            Total_number=1000 #per core
+            #speed 10 images/minute-> 10 images*200subs-> 2000subimages perminnute-> 1 subimmage -5secs ->
+            connections=10 #amount of connections to subimages in a folder:
+            folder_connections=Total_number//connections
+            #connections=max(Total_number//(Cores*len(data)),3)
+            semka = asyncio.Semaphore(folder_connections)
+            
+            #sem1 = asyncio.Semaphore(10)
+            #https://pawelmhm.github.io/asyncio/python/aiohttp/2016/04/22/asyncio-aiohttp.html
+            coroutines=[]
             for key, value in data.items(): #iterateing over ALL IMAGES gathered:
-                group1.create_task(async_images_download(sem1,value[0],value[4],value[3],title,value[2],value[1],value[5],value[6]))
-    except Exception as Argument:  #Error coding
-        time.sleep(2.)
-        log.exception("Error occurred in ASYNCIO")  
+                coroutines.append(async_images_download(semka,connections,value[0],value[4],value[3],value[2],value[1],value[5],value[6]))
+            #limit amount of folder executed at the same time:
+            
+            await asyncio.gather(*coroutines)
+        except Exception as Argument:  #Error coding
+            time.sleep(2.)
+            log.exception("Error occurred in the folder "+title)  
+        else:
+            director=os.path.join(BOOK_DIR, title)
+            lst=os.listdir(director)
+            count_images=0
+            for f in lst:
+                if f.endswith(".jpg"):
+                    count_images+=1
+            if count_images==len(pages):
+                check=False
+            
+        if count_loop>10: #only repeat itself max.4 times
+            check=False
+        count_loop+=1
 
         
 async def fetch_image_eshp1D1(url: str, headers_pr1, sem,img_path):
@@ -338,8 +372,11 @@ def prlDl(url):
     #check for the number of images downloaded:
     director=os.path.join(BOOK_DIR, title)
     lst=os.listdir(director)
-    
-    if len(lst)==len(pages):
+    count_images=0
+    for f in lst:
+        if f.endswith(".jpg"):
+            count_images+=1
+    if count_images==len(pages):
         return title, ext
     else:
         return 0
@@ -524,8 +561,8 @@ def worker(file_urls,i):
             if not os.path.isfile("source_urls.txt") or (time.time()-os.path.getmtime("source_urls.txt"))>7200:
                 #modify source_urls
                 
-                with open("personal_data.txt","r") as file:
-                    session=file.read().splitlines()
+                with open("personal_data.txt","r") as file2:
+                    session=file2.read().splitlines()
                 
                 c = {'s3': {'access': session[0], 'secret': session[1]}}
                 s = get_session(config=c)
@@ -542,8 +579,8 @@ def worker(file_urls,i):
                     for item in items:
                         source_urls.append(item["source_url"])
                     with lock:
-                        with open("source_urls.txt","w") as file:
-                            file.write("\n".join(source_urls))
+                        with open("source_urls.txt","w") as file3:
+                            file3.write("\n".join(source_urls))
             
             with open("source_urls.txt","r") as file1:
                 source_url=file1.read().splitlines()
@@ -655,6 +692,7 @@ def main():
         
         
         #divide urls in Cores and Run:
+        global Cores
         Cores=args.cores
         #create Threds:
         threads=[]

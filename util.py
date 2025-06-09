@@ -105,6 +105,7 @@ def mkdirs_for_regular_file(filename: str):
         except OSError as e:  # Guard against race condition
             if e.errno != errno.EEXIST:
                 raise
+
 def Time_Processing(timedelta):
     """Чтоб время показывать
     """
