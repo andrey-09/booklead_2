@@ -222,7 +222,7 @@ def archive_ia(title, url, metadata):
     #creating data and transferring Data to Server:
     try:
         response=internetarchive.upload(new_title, new_name, metadata, verify=True,validate_identifier=True,verbose=True,retries=20, retries_sleep =3, queue_derive=True,access_key=session[0], secret_key=session[1])
-        if response[0].ok:
+        if not response[0].ok:
             raise Exception("Not UPLOADED! Status Code ERROR!")
     except Exception as Argument:
         logging.exception("Error occurred in Ineren archvie upload "+response[0].reason) 
