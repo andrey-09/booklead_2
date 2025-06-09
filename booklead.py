@@ -496,7 +496,7 @@ def collect_urls():
     if args.url:
         urls.append(args.url)
     if args.list:
-        with open(args.list, encoding="utf-8") as fp:
+        with open(args.list,"r", encoding="utf-8") as fp:
             urls.extend([line.strip() for line in fp])
     return list(
         filter(lambda x: not x.startswith('#'),
@@ -516,27 +516,33 @@ def worker(file_urls,i):
         
         if args.archive: #do NOT download duplicates
             #search, whether it was already downloaded
+            """
             try:
-                items=search_items('uploader:"pavelserebrjanyi@gmail.com" AND source_url:"'+url+'"')
+                #items=search_items('uploader:"pavelserebrjanyi@gmail.com" AND source_url:"'+url+'"')
             except:
+                
                 #servers are overloaded
-                with lock:
-                    args.archive=0
+                #with lock:
+                #    args.archive=0
             else:
-                count=0
-                for item in items:
-                    count+=1
-                if count>0:
-                    
-                    #delete the first LINE from the NOTEPAD
-                    file.seek(0)
-                    # truncate the file
-                    file.truncate()
-                    # start writing lines except the first line
-                    if len(urls)==1:
-                        break
-                    file.write('\n'.join(urls[1:]))
-                    continue
+            
+            count=0
+            for item in items:
+                count+=1
+            if count>0:
+            """
+            with open("source_urls.txt","r") as file1:
+                source_url=file1.read().splitlines()
+            if url in source_url:
+                #delete the first LINE from the NOTEPAD
+                file.seek(0)
+                # truncate the file
+                file.truncate()
+                # start writing lines except the first line
+                if len(urls)==1:
+                    break
+                file.write('\n'.join(urls[1:]))
+                continue
         
         if STOP_break:
             break

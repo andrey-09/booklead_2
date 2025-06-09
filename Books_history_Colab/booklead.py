@@ -506,6 +506,7 @@ def worker(file_urls,i):
         
         if args.archive: #do NOT download duplicates
             #search, whether it was already downloaded
+            """  
             try:
                 items=search_items('uploader:"pavelserebrjanyi@gmail.com" AND source_url:"'+url+'"')
             except:
@@ -517,16 +518,19 @@ def worker(file_urls,i):
                 for item in items:
                     count+=1
                 if count>0:
-                    
-                    #delete the first LINE from the NOTEPAD
-                    file.seek(0)
-                    # truncate the file
-                    file.truncate()
-                    # start writing lines except the first line
-                    if len(urls)==1:
-                        break
-                    file.write('\n'.join(urls[1:]))
-                    continue
+            """        
+            with open(Google_Drive_Path+"source_urls.txt","r") as file1:
+                source_url=file1.read().splitlines()                                                      
+            if url in source_url:                                                       
+                #delete the first LINE from the NOTEPAD
+                file.seek(0)
+                # truncate the file
+                file.truncate()
+                # start writing lines except the first line
+                if len(urls)==1:
+                    break
+                file.write('\n'.join(urls[1:]))
+                continue
         if STOP_break:
             break
         load = download_book(url)
