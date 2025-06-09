@@ -24,7 +24,7 @@ from user_agent import generate_user_agent
 import logging
 import threading
 import requests
-from internetarchive import search_items
+from internetarchive import get_session
 
 lock = threading.Lock()
 
@@ -513,24 +513,38 @@ def worker(file_urls,i):
         file=open(file_urls,"r+")
         urls=file.read().splitlines()
         url=urls[0]
+        if STOP_break:
+            file.close()
+            break
         
         if args.archive: #do NOT download duplicates
             #search, whether it was already downloaded
-            """
-            try:
-                #items=search_items('uploader:"pavelserebrjanyi@gmail.com" AND source_url:"'+url+'"')
-            except:
-                
-                #servers are overloaded
-                #with lock:
-                #    args.archive=0
-            else:
             
-            count=0
-            for item in items:
-                count+=1
-            if count>0:
-            """
+            #if source_urls doesn't exist/too old (2 hours old): make it:
+            if not os.path.isfile("source_urls.txt") or (time.time()-os.path.getmtime("source_urls.txt"))>7200:
+                #modify source_urls
+                
+                with open("personal_data.txt","r") as file:
+                    session=file.read().splitlines()
+                
+                c = {'s3': {'access': session[0], 'secret': session[1]}}
+                s = get_session(config=c)
+                try:
+                    query='uploader:"pavelserebrjanyi@gmail.com" AND mediatype:texts'
+                    items=s.search_items(query, fields=["source_url"])
+                except:
+                    log.exception("Problems with IA servers")
+                    #servers are overloaded
+                    #with lock:
+                    #    args.archive=0
+                else:
+                    source_urls=[]
+                    for item in items:
+                        source_urls.append(item["source_url"])
+                    with lock:
+                        with open("source_urls.txt","w") as file:
+                            file.write("\n".join(source_urls))
+            
             with open("source_urls.txt","r") as file1:
                 source_url=file1.read().splitlines()
             if url in source_url:
@@ -544,9 +558,11 @@ def worker(file_urls,i):
                 file.write('\n'.join(urls[1:]))
                 continue
         
-        if STOP_break:
-            break
+
         load = download_book(url)
+        if STOP_break:
+            file.close()
+            break
         try:
             if not isinstance(load, tuple):
                 raise Exception("Not able to download!")
@@ -583,6 +599,17 @@ def worker(file_urls,i):
                     file.write('\n'+urls[0])
                 file.close()
                 continue
+            else:
+                #delete the first LINE from the NOTEPAD
+                file.seek(0)
+                # truncate the file
+                file.truncate()
+                # start writing lines except the first line
+                if len(urls)!=1:
+                    file.write('\n'.join(urls[1:]))
+                    #file.write('\n'+urls[0])
+                file.close()
+                continue
             log.info(f'Thread {i} archived the book')
         if load and args.pdf.lower() in ['y', 'yes'] and not STOP_break:
             progress('  Создание PDF...')
@@ -592,6 +619,9 @@ def worker(file_urls,i):
             makePdf(pdf_path, img_folder_full, img_ext)
             ptext(f' - Файл сохранён: {pdf_path}')
         log.info(f'Thread {i} is DONE with the book')
+        if STOP_break:
+            file.close()
+            break
         #delete the first LINE from the NOTEPAD
         file.seek(0)
         # truncate the file
