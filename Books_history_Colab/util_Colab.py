@@ -5,6 +5,7 @@ import errno
 import functools
 import hashlib
 import logging
+from logging.handlers import RotatingFileHandler                                     
 import numpy as np
 import os
 import random
@@ -54,7 +55,7 @@ def _setup_logging():
         # https://stackoverflow.com/questions/7173033/duplicate-log-output-when-using-python-logging-module
         root_logger.handlers.clear()
 
-    file_handler = logging.FileHandler(LOG_FILE, encoding='utf-8')
+    file_handler = RotatingFileHandler(LOG_FILE, maxBytes=20*1024*1024,backupCount=2, encoding='utf-8')
     file_handler.setFormatter(log_formatter)
     root_logger.addHandler(file_handler)
     logging.basicConfig(filemode='w') 

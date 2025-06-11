@@ -357,6 +357,10 @@ def prlDl(url):
                     book = book_json['diva']['settings']
             except:
                 log.exception("Error, NOTHING FOUND!")
+                #BAD URLS:
+                with open("BAD_URLS.txt","a") as file:
+                    file.write(url+"\n")
+                
                 return
     try:
         json_text = bro.get_text(book['objectData'],headers=headers_pr2)
@@ -612,6 +616,7 @@ def worker(file_urls,i):
             if len(urls)!=1:
                 file.write('\n'.join(urls[1:]))
                 file.write('\n'+urls[0])
+            
             continue
         #sys.stdout.write(load)
         log.info(f'Thread {i} finished downloading')
