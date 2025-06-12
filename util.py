@@ -242,7 +242,7 @@ def archive_ia(title, url, metadata):
         #delete the folder:
         root="books\\"+new_title
         shutil.rmtree(root)
-        
+        """#no use for it
         datafile="Prlib_1801-1900.csv"
         with lock:
             with open(datafile,"r", encoding='utf-8') as csvfile: #read the place, where to put value
@@ -255,12 +255,12 @@ def archive_ia(title, url, metadata):
             with open(datafile, 'w', newline='', encoding='utf-8') as file: #put the value
                 writer = csv.writer(file)
                 writer.writerows(data)
-
+        """
         
 
     
 def CheckArchiveForWrites(urls): #Not used
-    """
+    """DROPPED!
     Function to check, whether a book is written to archive.org and update Excel (for keeping track of records)
     takes a lot of time and unneccesary
     """

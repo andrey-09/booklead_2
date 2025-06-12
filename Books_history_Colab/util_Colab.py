@@ -241,7 +241,7 @@ def archive_ia(title, url, metadata):
   
     
 def CheckArchiveForWrites(urls):
-    """
+    """DROPPED!
     Function to check, whether a book is written to archive.org and update Excel (for keeping track of records)
     takes a lot of time and unneccesary
     """

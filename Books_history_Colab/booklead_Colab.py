@@ -10,7 +10,7 @@ import datetime
 import time
 import numpy as np
 #import nest_asyncio #used for debugging
-from util_Colab import CV2_Russian, number_of_images, Postprocess, Time_Processing,archive_ia, fetch_metadata, CheckArchiveForWrites
+from util_Colab import CV2_Russian, number_of_images, Postprocess, Time_Processing,archive_ia, fetch_metadata
 import cv2
 import random
 import img2pdf
@@ -148,9 +148,10 @@ async def async_images_download(semka,connections,url,nums,headers_pr1_local,ima
                     else:
                         #check for image size:
                         img=os.path.join(images_folder, str(i)+".jpg")
-                        if os.path.getsize(img)!=0:
-                            flag=False
-    
+                        if os.path.exists(img):
+                            if os.path.getsize(img)!=0:
+                                flag=False
+        
     #Double check on the number of items:
     lst=os.listdir(images_folder)
     if len(lst)==width*height:
@@ -215,7 +216,7 @@ async def PresLib_Main_Download(pages,book, title,url):
         try:
             #create All coroutines to Run:
             global Cores #Total amount of connections: number_of_images_huge*nums*Cores
-            Total_number=1000 #per core
+            Total_number=100 #per core
             #speed 10 images/minute-> 10 images*200subs-> 2000subimages perminnute-> 1 subimmage -5secs ->
             connections=10 #amount of connections to subimages in a folder:
             folder_connections=Total_number//connections
