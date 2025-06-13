@@ -211,7 +211,7 @@ async def PresLib_Main_Download(pages,book, title,url):
         try:
             #create All coroutines to Run:
             global Cores #Total amount of connections: number_of_images_huge*nums*Cores
-            Total_number=1000 #per core
+            Total_number=100 #per core
             #speed 10 images/minute-> 10 images*200subs-> 2000subimages perminnute-> 1 subimmage -5secs ->
             connections=10 #amount of connections to subimages in a folder:
             folder_connections=Total_number//connections
@@ -562,7 +562,7 @@ def worker(file_urls,i):
             #search, whether it was already downloaded
             
             #if source_urls doesn't exist/too old (2 hours old): make it:
-            if not os.path.isfile("source_urls.txt") or (time.time()-os.path.getmtime("source_urls.txt"))>7200:
+            if not os.path.isfile("source_urls.txt") or (time.time()-os.path.getmtime("source_urls.txt"))>1200:
                 #modify source_urls
                 
                 with open("personal_data.txt","r") as file2:
@@ -581,7 +581,8 @@ def worker(file_urls,i):
                 else:
                     source_urls=[]
                     for item in items:
-                        source_urls.append(item["source_url"])
+                        if "source_url" in item.keys():
+                            source_urls.append(item["source_url"])
                     with lock:
                         with open("source_urls.txt","w") as file3:
                             file3.write("\n".join(source_urls))
@@ -618,6 +619,16 @@ def worker(file_urls,i):
                 file.write('\n'+urls[0])
             
             continue
+        else:
+            if not args.archive:
+                #delete the first LINE from the NOTEPAD
+                file.seek(0)
+                # truncate the file
+                file.truncate()
+                # start writing lines except the first line
+                if len(urls)!=1:        
+                    file.write('\n'.join(urls[1:]))
+                file.close()           
         #sys.stdout.write(load)
         log.info(f'Thread {i} finished downloading')
         if args.archive and not STOP_break:
@@ -651,7 +662,7 @@ def worker(file_urls,i):
                     file.write('\n'.join(urls[1:]))
                     #file.write('\n'+urls[0])
                 file.close()
-                continue
+               
             log.info(f'Thread {i} archived the book')
         if load and args.pdf.lower() in ['y', 'yes'] and not STOP_break:
             progress('  Создание PDF...')
@@ -664,14 +675,7 @@ def worker(file_urls,i):
         if STOP_break:
             file.close()
             break
-        #delete the first LINE from the NOTEPAD
-        file.seek(0)
-        # truncate the file
-        file.truncate()
-        # start writing lines except the first line
-        if len(urls)!=1:
-            file.write('\n'.join(urls[1:]))
-        file.close()
+
     log.info(f'Thread {i} is FINISHED!')
             
 

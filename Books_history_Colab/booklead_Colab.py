@@ -552,7 +552,7 @@ def worker(file_urls,i):
         
         if args.archive: #do NOT download duplicates
             
-            if not os.path.isfile(Google_Drive_Path+"source_urls.txt") or (time.time()-os.path.getmtime(Google_Drive_Path+"source_urls.txt"))>7200:
+            if not os.path.isfile(Google_Drive_Path+"source_urls.txt") or (time.time()-os.path.getmtime(Google_Drive_Path+"source_urls.txt"))>1200:
                 #modify source_urls
                 
                 with open(Google_Drive_Path+"personal_data.txt","r") as file2:
@@ -571,7 +571,8 @@ def worker(file_urls,i):
                 else:
                     source_urls=[]
                     for item in items:
-                        source_urls.append(item["source_url"])
+                    	if "source_url" in item.keys():
+                        	source_urls.append(item["source_url"])
                     with lock:
                         with open(Google_Drive_Path+"source_urls.txt","w") as file3:
                             file3.write("\n".join(source_urls))                                                                         
@@ -604,6 +605,16 @@ def worker(file_urls,i):
                 file.write('\n'.join(urls[1:]))
                 file.write('\n'+urls[0])
             continue
+        else:
+            if not args.archive:
+                #delete the first LINE from the NOTEPAD
+                file.seek(0)
+                # truncate the file
+                file.truncate()
+                # start writing lines except the first line
+                if len(urls)!=1:        
+                    file.write('\n'.join(urls[1:]))
+                file.close() 
         #sys.stdout.write(load)
         log.info(f'Thread {i} finished downloading')
         if args.archive and not STOP_break:
@@ -636,7 +647,7 @@ def worker(file_urls,i):
                     file.write('\n'.join(urls[1:]))
                     #file.write('\n'+urls[0])
                 file.close()
-                continue                            
+                                           
             log.info(f'Thread {i} archived the book')
         if load and args.pdf.lower() in ['y', 'yes'] and not STOP_break:
             progress('  Создание PDF...')
@@ -649,14 +660,7 @@ def worker(file_urls,i):
         if STOP_break:
             file.close()
             break
-        #delete the first LINE from the NOTEPAD
-        file.seek(0)
-        # truncate the file
-        file.truncate()
-        # start writing lines except the first line
-        if len(urls)!=1:        
-            file.write('\n'.join(urls[1:]))
-        file.close()
+
     log.info(f'Thread {i} is FINISHED!')
             
 
