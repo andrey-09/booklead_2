@@ -39,7 +39,7 @@ user_agents = [
     'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:49.0) Gecko/20100101 Firefox/49.0'
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36'
 ]
-
+lock=threading.Lock()
 Google_Drive_Path="drive/MyDrive/Books_download/"
 LOG_FILE = 'log.txt'
 logging_set_up = False
@@ -169,11 +169,12 @@ def fetch_metadata(url,headers_pr2):
         #adding date
         date=""
         if os.path.exists(dataset):
-            with open(dataset, mode ='r',encoding="utf-8")as file:
-              csvFile = csv.reader(file)
-              for lines in csvFile:
-                    if url==lines[2]:
-                        date=lines[0]
+            with lock:  
+                with open(dataset, mode ='r',encoding="utf-8")as file:
+                  csvFile = csv.reader(file)
+                  for lines in csvFile:
+                        if url==lines[2]:
+                            date=lines[0]
     return {
         "collection":["russian-online-libraries"],
         "creator" : author_,
@@ -202,11 +203,11 @@ def archive_ia(title, url, metadata):
     new_title=transliterate.translit(title, "ru",reversed=True).replace(" ","")[:40]+str(randrange(99))
     new_title = re.sub(r'[^a-zA-Z0-9_]', '', new_title) #remove all special characters
     new_title=new_title.lower()
-    
+    title_file=url.split("/")[-1]
     #check, whether a file is already there (because it was already tried before)
     #import glob
     #if glob.glob('books\\'+new_title[:-2]+'*.zip'):
-    os.rename("books/"+title, "books/"+new_title)
+    os.rename("books/"+title_file, "books/"+new_title)
     root="books/"+new_title
     for dir, subdirs, files in os.walk(root):
         for f in files:
@@ -233,10 +234,10 @@ def archive_ia(title, url, metadata):
         raise Exception("Error wiht UPLOAD")
         
     else:
-        os.rename("books/"+new_title,"books/"+title) #rename folder
+        #os.rename("books/"+new_title,"books/"+title) #rename folder
         os.remove(new_name) #delete zip
         #rename the files back:
-        root="books/"+title                     
+        root="books/"+new_title                     
         shutil.rmtree(root)
   
     

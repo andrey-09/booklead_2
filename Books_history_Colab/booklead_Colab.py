@@ -337,14 +337,16 @@ def prlDl(url):
     global headers_pr1
     html_text = requests.get(url, headers=headers_pr2).text
     soup = BeautifulSoup(html_text, 'html.parser')
-    title = soup.head.title.text.split("|")[0]
-    title = safe_file_name(title)
+    title_name = soup.head.title.text.split("|")[0]
+    title_name = safe_file_name(title_name)
     #get the number of characters in the current path
     num_of_characters=80-len(os.path.abspath(os.getcwd()))
-    if len(title)>85:
-        title=title[:num_of_characters] + title[-15:]#to have the volume part in the name
+    if len(title_name)>85:
+        title_name=title_name[:num_of_characters] + title_name[-15:]#to have the volume part in the name
     
-    log.info(f'Каталог для загрузки: {title}')
+    title=url.split("/")[-1]
+    
+    log.info(f'Каталог для загрузки: {title_name}')
     
     for script in soup.find_all('script'): #findAll deprecated
         st = str(script)
@@ -371,7 +373,7 @@ def prlDl(url):
         if f.endswith(".jpg"):
             count_images+=1
     if count_images==len(pages):
-        return title, ext
+        return title_name, ext
     else:
         return 0
 
@@ -552,7 +554,7 @@ def worker(file_urls,i):
         
         if args.archive: #do NOT download duplicates
             
-            if not os.path.isfile(Google_Drive_Path+"source_urls.txt") or (time.time()-os.path.getmtime(Google_Drive_Path+"source_urls.txt"))>1200:
+            if not os.path.isfile(Google_Drive_Path+"source_urls.txt") or (time.time()-os.path.getmtime(Google_Drive_Path+"source_urls.txt"))>3600:
                 #modify source_urls
                 
                 with open(Google_Drive_Path+"personal_data.txt","r") as file2:
@@ -587,6 +589,7 @@ def worker(file_urls,i):
                 if len(urls)==1:
                     break
                 file.write('\n'.join(urls[1:]))
+                file.close()
                 continue
         load = download_book(url)
         if STOP_break:
@@ -604,6 +607,7 @@ def worker(file_urls,i):
             if len(urls)!=1:
                 file.write('\n'.join(urls[1:]))
                 file.write('\n'+urls[0])
+            file.close()
             continue
         else:
             if not args.archive:
@@ -651,9 +655,10 @@ def worker(file_urls,i):
             log.info(f'Thread {i} archived the book')
         if load and args.pdf.lower() in ['y', 'yes'] and not STOP_break:
             progress('  Создание PDF...')
-            title, img_ext = load
+            title_name, img_ext = load
+            title=url.split("/")[-1]                        
             img_folder_full = os.path.join(BOOK_DIR, title)
-            pdf_path = os.path.join(BOOK_DIR, f'{title}.pdf')
+            pdf_path = os.path.join(BOOK_DIR, f'{title_name}.pdf')
             makePdf(pdf_path, img_folder_full, img_ext)
             ptext(f' - Файл сохранён: {pdf_path}')
         log.info(f'Thread {i} is DONE with the book')

@@ -12,7 +12,6 @@ import numpy as np
 #import nest_asyncio #used for debugging
 from util import CV2_Russian, number_of_images, Postprocess, Time_Processing,archive_ia, fetch_metadata, CheckArchiveForWrites
 import cv2
-import random
 import img2pdf
 from bs4 import BeautifulSoup
 import sys
@@ -142,8 +141,9 @@ async def async_images_download(semka,connections,url,nums,headers_pr1_local,ima
                     else:
                         #check for image size:
                         img=os.path.join(images_folder, str(i)+".jpg")
-                        if os.path.getsize(img)!=0:
-                            flag=False
+                        if os.path.exists(img):                       
+                            if os.path.getsize(img)!=0:
+                                flag=False
     
     #Double check on the number of items:
     lst=os.listdir(images_folder)
@@ -336,14 +336,17 @@ def prlDl(url):
     html_text = requests.get(url, headers=headers_pr2).text
     
     soup = BeautifulSoup(html_text, 'html.parser')
-    title = soup.head.title.text.split("|")[0]
-    title = safe_file_name(title)
+    # instead of Title use unique identitfier of the url
+    title_name = soup.head.title.text.split("|")[0]
+    title_name = safe_file_name(title_name)
     #get the number of characters in the current path
     num_of_characters=150-len(os.path.abspath(os.getcwd()))
-    if len(title)>165:
-        title=title[:num_of_characters] + title[-15:]#to have the volume part in the name
+    if len(title_name)>165:
+        title_name=title_name[:num_of_characters] + title_name[-15:]#to have the volume part in the name
     
-    log.info(f'Каталог для загрузки: {title}')
+    title=url.split("/")[-1]
+    
+    log.info(f'Каталог для загрузки: {title_name}')
     
     for script in soup.find_all('script'): #findAll deprecated
         st = str(script)
@@ -381,7 +384,7 @@ def prlDl(url):
         if f.endswith(".jpg"):
             count_images+=1
     if count_images==len(pages):
-        return title, ext
+        return title_name, ext
     else:
         return 0
 
@@ -562,7 +565,7 @@ def worker(file_urls,i):
             #search, whether it was already downloaded
             
             #if source_urls doesn't exist/too old (2 hours old): make it:
-            if not os.path.isfile("source_urls.txt") or (time.time()-os.path.getmtime("source_urls.txt"))>1200:
+            if not os.path.isfile("source_urls.txt") or (time.time()-os.path.getmtime("source_urls.txt"))>1800:
                 #modify source_urls
                 
                 with open("personal_data.txt","r") as file2:
@@ -598,6 +601,7 @@ def worker(file_urls,i):
                 if len(urls)==1:
                     break
                 file.write('\n'.join(urls[1:]))
+                file.close()
                 continue
         
 
@@ -617,7 +621,7 @@ def worker(file_urls,i):
             if len(urls)!=1:
                 file.write('\n'.join(urls[1:]))
                 file.write('\n'+urls[0])
-            
+            file.close()
             continue
         else:
             if not args.archive:
@@ -633,8 +637,7 @@ def worker(file_urls,i):
         log.info(f'Thread {i} finished downloading')
         if args.archive and not STOP_break:
             #archive all photos:
-    
-
+ 
             try:
                 #fetch metadata:
                 global headers_pr2
@@ -664,13 +667,16 @@ def worker(file_urls,i):
                 file.close()
                
             log.info(f'Thread {i} archived the book')
+        #NOT USED (with archive will not work, since i delete the folder)
         if load and args.pdf.lower() in ['y', 'yes'] and not STOP_break:
             progress('  Создание PDF...')
-            title, img_ext = load
+            title_name, img_ext = load
+            title=url.split("/")[-1]
             img_folder_full = os.path.join(BOOK_DIR, title)
-            pdf_path = os.path.join(BOOK_DIR, f'{title}.pdf')
+            pdf_path = os.path.join(BOOK_DIR, f'{title_name}.pdf')
             makePdf(pdf_path, img_folder_full, img_ext)
             ptext(f' - Файл сохранён: {pdf_path}')
+        
         log.info(f'Thread {i} is DONE with the book')
         if STOP_break:
             file.close()

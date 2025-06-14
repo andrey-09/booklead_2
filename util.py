@@ -204,11 +204,11 @@ def archive_ia(title, url, metadata):
     new_title=transliterate.translit(title, "ru",reversed=True).replace(" ","")[:40]+str(randrange(99))
     new_title = re.sub(r'[^a-zA-Z0-9_]', '', new_title) #remove all special characters
     new_title=new_title.lower()
-    
+    title_file=url.split("/")[-1]
     #check, whether a file is already there (because it was already tried before)
     #import glob
     #if glob.glob('books\\'+new_title[:-2]+'*.zip'):
-    os.rename("books\\"+title, "books\\"+new_title)
+    os.rename("books\\"+title_file, "books\\"+new_title)
     root="books\\"+new_title
     for dir, subdirs, files in os.walk(root):
         for f in files:
@@ -241,6 +241,7 @@ def archive_ia(title, url, metadata):
         os.remove(new_name) #delete zip
         #delete the folder:
         root="books\\"+new_title
+        #rename the files back for creating PDF
         shutil.rmtree(root)
         """#no use for it
         datafile="Prlib_1801-1900.csv"
