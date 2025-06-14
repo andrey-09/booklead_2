@@ -35,7 +35,7 @@ def monitoring_history(amount_of_hours):
     
     plt.plot([a.split("T")[1][:-4] for a in x], y, "*")
     plt.tight_layout()
-    plt.show()  
+    #plt.show()  
     plt.savefig('Monitoring Archive-org.png')
 
     #write history to a file:
