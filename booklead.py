@@ -563,30 +563,30 @@ def worker(file_urls,i):
         
         if args.archive: #do NOT download duplicates
             #search, whether it was already downloaded
-            
+            with lock:
             #if source_urls doesn't exist/too old (2 hours old): make it:
-            if not os.path.isfile("source_urls.txt") or (time.time()-os.path.getmtime("source_urls.txt"))>1800:
-                #modify source_urls
-                
-                with open("personal_data.txt","r") as file2:
-                    session=file2.read().splitlines()
-                
-                c = {'s3': {'access': session[0], 'secret': session[1]}}
-                s = get_session(config=c)
-                try:
-                    query='uploader:"pavelserebrjanyi@gmail.com" AND mediatype:texts'
-                    items=s.search_items(query, fields=["source_url"])
-                except:
-                    log.exception("Problems with IA servers")
-                    #servers are overloaded
-                    #with lock:
-                    #    args.archive=0
-                else:
-                    source_urls=[]
-                    for item in items:
-                        if "source_url" in item.keys():
-                            source_urls.append(item["source_url"])
-                    with lock:
+                if not os.path.isfile("source_urls.txt") or (time.time()-os.path.getmtime("source_urls.txt"))>3600:
+                    #modify source_urls
+                    
+                    with open("personal_data.txt","r") as file2:
+                        session=file2.read().splitlines()
+                    
+                    c = {'s3': {'access': session[0], 'secret': session[1]}}
+                    s = get_session(config=c)
+                    try:
+                        query='uploader:"pavelserebrjanyi@gmail.com" AND mediatype:texts'
+                        items=s.search_items(query, fields=["source_url"])
+                    except:
+                        log.exception("Problems with IA servers")
+                        #servers are overloaded
+                        #with lock:
+                        #    args.archive=0
+                    else:
+                        source_urls=[]
+                        for item in items:
+                            if "source_url" in item.keys():
+                                source_urls.append(item["source_url"])
+                        
                         with open("source_urls.txt","w") as file3:
                             file3.write("\n".join(source_urls))
             

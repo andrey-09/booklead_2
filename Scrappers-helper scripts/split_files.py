@@ -1,13 +1,14 @@
 files=10
+file_name='1921-1969_books.txt'
 
-with open("urls.txt","r") as file:
+with open(file_name,"r") as file:
     urls=file.read().splitlines()
 
 coef=len(urls)//files
 
-
+name=file_name.split(".txt")[0]
 for i in range(files):
-    with open("file_"+str(i)+".txt","w") as file1:
+    with open(name+"_file_"+str(i)+".txt","w") as file1:
         if i!=files-1:
             file1.write("\n".join(urls[coef*(i):coef*(i+1)]))
         else:
