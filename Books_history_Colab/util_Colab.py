@@ -185,8 +185,8 @@ def fetch_metadata(url,headers_pr2):
         "description":   description,
         "subject":subjects,
         "date":date,
-        "Source_url": url
-        #"script_down":"Colab"
+        "Source_url": url,
+        "adaptive_ocr": 'true'
         }
 def archive_ia(title, url, metadata):
     """
