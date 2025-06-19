@@ -564,7 +564,7 @@ def worker(file_urls,i):
                     s = get_session(config=c)
                     try:
                         query='uploader:"pavelserebrjanyi@gmail.com" AND mediatype:texts'
-                        items=s.search_items(query, fields=["source_url"])
+                        items=s.search_items(query, fields=["source_url"], max_retries =30,timeout=40)
                     except:
                         log.exception("Problems with IA servers")
                         #servers are overloaded

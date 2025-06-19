@@ -111,7 +111,7 @@ async def fetch_image_download(url: str, i, headers_pr1_local, session,images_fo
     #
     #https://brightdata.com/cp/zones/datacenter_proxy1/stats
     #proxy1 = 'http://brd-customer-hl_4bc3058c-zone-datacenter_proxy1:ag1xhn5rbq3v@brd.superproxy.io:33335'
-    proxy2='http://brd-customer-hl_4bc3058c-zone-datacenter_proxy2:116u1436ep7o@brd.superproxy.io:33335'
+    proxy2='http://brd-customer-hl_6483eeb7-zone-datacenter_proxy2:g1u2lltfqz67@brd.superproxy.io:33335'
     async with session.get(url, headers=headers_pr1_local, proxy=proxy2) as response:
                                                     
         if response.ok:  
@@ -568,7 +568,7 @@ def worker(file_urls,i):
                     s = get_session(config=c)
                     try:
                         query='uploader:"pavelserebrjanyi@gmail.com" AND mediatype:texts'
-                        items=s.search_items(query, fields=["source_url"])
+                        items=s.search_items(query, fields=["source_url"], max_retries =30,timeout=40)
                     except:
                         log.exception("Problems with IA servers")
                         #servers are overloaded

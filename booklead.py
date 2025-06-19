@@ -10,7 +10,7 @@ import datetime
 import time
 import numpy as np
 #import nest_asyncio #used for debugging
-from util import CV2_Russian, number_of_images, Postprocess, Time_Processing,archive_ia, fetch_metadata, CheckArchiveForWrites
+from util import CV2_Russian, number_of_images, Postprocess, Time_Processing, archive_ia, fetch_metadata, CheckArchiveForWrites
 import cv2
 import img2pdf
 from bs4 import BeautifulSoup
@@ -575,7 +575,7 @@ def worker(file_urls,i):
                     s = get_session(config=c)
                     try:
                         query='uploader:"pavelserebrjanyi@gmail.com" AND mediatype:texts'
-                        items=s.search_items(query, fields=["source_url"])
+                        items=s.search_items(query, fields=["source_url"], max_retries =30,timeout=40)
                     except:
                         log.exception("Problems with IA servers")
                         #servers are overloaded
