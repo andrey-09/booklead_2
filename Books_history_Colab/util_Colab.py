@@ -72,7 +72,6 @@ def get_logger(name=None):
 
 
 log = get_logger(__name__)
-lock=threading.Lock()
 
 
 
@@ -155,7 +154,10 @@ def fetch_metadata(url,headers_pr2):
         subjects=subjects+list(dict.fromkeys(subject_set))
         #description+="\n"+url+"\n"
         #language detection:
-        lang=detect(title)
+        try:
+            lang=detect(title)
+        except:
+            lang=''  
         dict_lang={"de":"German", "en":"English"}
         if lang in list(dict_lang.keys()):
             language=dict_lang[lang]

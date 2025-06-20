@@ -27,6 +27,7 @@ from user_agent import generate_user_agent
 from internetarchive import get_session
 
 lock = threading.Lock()                      
+lock_async = asyncio.Lock()                          
 log = get_logger(__name__)
 BOOK_DIR = 'books'
 
@@ -82,7 +83,7 @@ headers_eph1 = {
 
 bro: Browser
 Google_Drive_Path="drive/MyDrive/Books_download/"
-
+Check_404=False
 def makePdf(pdf_path, img_folder, img_ext):
     img_list = []
     for r, _, ff in os.walk(img_folder):
@@ -115,7 +116,8 @@ async def fetch_image_download(url: str, i, headers_pr1_local, session,images_fo
                 file.write(await response.read())
         else:
             log.info("Bad response from server "+str(response.status))
-          
+            if response.status==404:
+                raise AssertionError          
                                      
                 
                 
@@ -127,21 +129,30 @@ async def async_images_download(semka,connections,url,nums,headers_pr1_local,ima
                                                                                                                                                              
                             
     global STOP_break
-    
+    global Check_404
     sem1 = asyncio.Semaphore(connections)
     async with semka: 
         async with ClientSession(timeout=ClientTimeout(total=8),headers=headers_pr1_local,trust_env=True) as session:
             for i in nums: #doing it for Every url of subimages:
                 
                 flag=True #just keep quering the connections (Until ALL IMAGES ARE PRESENT)
-                while flag:  #while check for a complete download: 
+                count=0 #number of iterations on each picture (get rid fo the infinite loop situation)                                                                                      
+                while flag and count<50: #while check for a complete download: 
                 
-                    if STOP_break:
+                    if STOP_break or Check_404:
                         return
                     headers_pr1_local.update({'User-Agent': generate_user_agent(os='win',device_type ='desktop',navigator='chrome') })
                     try: #catching error here
+                        count+=1        
                         async with sem1: 
                             await fetch_image_download(url.format(i), i,headers_pr1_local,session,images_folder)
+                    except AssertionError:
+                        log.info("404 ERRORS, skipping: " + images_folder)
+                        #the error is 404 (skip this book on count):
+                        if count>4:
+                            with lock_async:
+                                Check_404=True
+                            return                         
                     except Exception as Argument:
                         log.info("Error occurred in local asyncio (async images) - "+ images_folder)
                         await asyncio.sleep(4)
@@ -243,7 +254,7 @@ async def PresLib_Main_Download(pages,book, title,url):
             if count_images==len(pages):
                 check=False
             
-        if count_loop>10: #only repeat itself max.4 times
+        if count_loop>4: #only repeat itself max.4 times
             check=False
         count_loop+=1                          
 
@@ -562,22 +573,25 @@ def worker(file_urls,i):
                     
                     c = {'s3': {'access': session[0], 'secret': session[1]}}
                     s = get_session(config=c)
-                    try:
-                        query='uploader:"pavelserebrjanyi@gmail.com" AND mediatype:texts'
-                        items=s.search_items(query, fields=["source_url"], max_retries =30,timeout=40)
-                    except:
-                        log.exception("Problems with IA servers")
-                        #servers are overloaded
-                        #with lock:
-                        #    args.archive=0
-                    else:
-                        source_urls=[]
-                        for item in items:
-                            if "source_url" in item.keys():
-                                source_urls.append(item["source_url"])
-                        
-                        with open(Google_Drive_Path+"source_urls.txt","w") as file3:
-                            file3.write("\n".join(source_urls))                                                                         
+                    check_flag=True
+                    while check_flag:
+                        try:
+                            query='uploader:"pavelserebrjanyi@gmail.com" AND mediatype:texts'
+                            items=s.search_items(query, fields=["source_url"], max_retries =100,request_kwargs={'timeout':(300,300)})
+                            source_urls=[]
+                            for item in items:
+                                if "source_url" in item.keys():
+                                    source_urls.append(item["source_url"])
+                        except:
+                            log.exception("Problems with IA servers")
+                            time.sleep(2)
+                            #servers are overloaded
+                            #with lock:
+                            #    args.archive=0
+                        else:
+                            check_flag=False
+                            with open(Google_Drive_Path+"source_urls.txt","w") as file3:
+                                file3.write("\n".join(source_urls))                                                                       
             with open(Google_Drive_Path+"source_urls.txt","r") as file1:
                 source_url=file1.read().splitlines()                                                      
             if url in source_url:                                                       
@@ -631,12 +645,11 @@ def worker(file_urls,i):
                 archive_ia(load[0],url,metadata) #archive the book
             except:
                 #if an error, skip to the next one
-                #delete the first LINE from the NOTEPAD
-                file.seek(0)
-                # truncate the file
-                file.truncate()
-                # start writing lines except the first line
                 if len(urls)!=1:
+                    file.seek(0)
+                    # truncate the file
+                    file.truncate()
+                    # start writing lines except the first line
                     file.write('\n'.join(urls[1:]))
                     file.write('\n'+urls[0])
                 file.close()

@@ -113,7 +113,7 @@ def Time_Processing(timedelta):
     minutes, seconds = divmod(round(timedelta.total_seconds()), 60)
     return minutes, seconds
 def fetch_metadata(url,headers_pr2):
-        #fetch metadata:
+    #fetch metadata:
     from bs4 import BeautifulSoup
     import requests
 
@@ -146,8 +146,7 @@ def fetch_metadata(url,headers_pr2):
         if len(catalogs)!=0:
             for subject in catalogs[0].find_all("li"):
                 subjects.append(subject.text.strip())
-        
-        #Collections: #ADD THEM to DESCRIPTION
+        #Collections:
         subject_set=[]
         collections=soup.find_all(class_="df-relations")
         if len(collections)!=0:
@@ -157,7 +156,10 @@ def fetch_metadata(url,headers_pr2):
                     subject_set.append(element)
         subjects=subjects+list(dict.fromkeys(subject_set))
         #language detection:
-        lang=detect(title)
+        try:
+            lang=detect(title)
+        except:
+            lang=''
         dict_lang={"de":"German", "en":"English"}
         if lang in list(dict_lang.keys()):
             language=dict_lang[lang]
@@ -166,7 +168,6 @@ def fetch_metadata(url,headers_pr2):
         
         #add "date" after the data is scrapped
         #search by date in .csv?
-        
         dataset="PrLib_Dataset.csv"
         #adding date
         date=""
