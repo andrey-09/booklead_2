@@ -37,14 +37,13 @@ eshplDl_params = {
 
 prlDl_params = {
     'ext': 'jpg' }
-
 headers_pr1 = {
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
     "Accept-Encoding": "gzip, deflate, br, zstd", 
     "Accept-Language": "en-GB,en-US;q=0.9,en;q=0.8,ru;q=0.7",
-    'Cache-Control': 'max-age=0',
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma':'no-cache',
     'Connection': 'keep-alive',
-    'If-Modified-Since': 'Tue, 20 Dec 2016 02:17:59 GMT',
     'Sec-Fetch-Dest': 'document',
     'Sec-Fetch-Mode': 'navigate',
     'Sec-Fetch-Site': 'none',
@@ -66,6 +65,8 @@ headers_eph1 = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
     "Accept-Encoding": "gzip, deflate, br, zstd",
     "Accept-Language": "en-US,en;q=0.9",
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma':'no-cache',
     "Connection": "keep-alive",
     "Dnt": "1",
     "Host": "httpbin.io",
@@ -591,6 +592,8 @@ def worker(file_urls,i):
                         try:
                             query='uploader:"pavelserebrjanyi@gmail.com" AND mediatype:texts'
                             items=s.search_items(query, fields=["source_url"], max_retries =100,request_kwargs={'timeout':(300,300)})
+                            # issue with readTimeout is solved by using advanced_search: add params={'page':1, 'rows':70000}
+                            #https://github.com/jjjake/internetarchive/issues/610
                             source_urls=[]
                             for item in items:
                                 if "source_url" in item.keys():

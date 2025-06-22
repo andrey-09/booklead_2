@@ -43,9 +43,9 @@ headers_pr1 = {
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
     "Accept-Encoding": "gzip, deflate, br, zstd", 
     "Accept-Language": "en-GB,en-US;q=0.9,en;q=0.8,ru;q=0.7",
-    'Cache-Control': 'max-age=0',
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma':'no-cache',
     'Connection': 'keep-alive',
-    'If-Modified-Since': 'Tue, 20 Dec 2016 02:17:59 GMT',
     'Sec-Fetch-Dest': 'document',
     'Sec-Fetch-Mode': 'navigate',
     'Sec-Fetch-Site': 'none',
@@ -62,11 +62,13 @@ headers_pr1 = {
     'Origin':'https://content.prlib.ru'
 }
 headers_pr2=headers_pr1 
-headers_pr2.update({"Host":"www.prlib.ru","Origin": "https://www.prlib.ru"})                     
+headers_pr2.update({"Host":"www.prlib.ru","Origin": "https://www.prlib.ru"})
 headers_eph1 = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
     "Accept-Encoding": "gzip, deflate, br, zstd",
     "Accept-Language": "en-US,en;q=0.9",
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma':'no-cache',
     "Connection": "keep-alive",
     "Dnt": "1",
     "Host": "httpbin.io",
@@ -80,7 +82,6 @@ headers_eph1 = {
     "Sec-Gpc": "1",
     "Upgrade-Insecure-Requests": "1"
 }
-
 bro: Browser
 Google_Drive_Path="drive/MyDrive/Books_download/"
 Check_404=False
