@@ -15,6 +15,7 @@ import sys
 import time
 import cv2
 import requests
+import urllib
 import threading
 from bs4 import Tag
 from requests import Response
@@ -28,25 +29,61 @@ from internetarchive.session import ArchiveSession
 from user_agent import generate_user_agent
 from internetarchive import search_items
 from langdetect import detect #language detection
-user_agents = [
-    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.78 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.113 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.157 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 5.1; rv:7.0.1) Gecko/20100101 Firefox/7.0.1',
-    'Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.121 Safari/537.36',
-    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/44.0.2403.157 Safari/537.36',
-    'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:49.0) Gecko/20100101 Firefox/49.0'
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36 Edg/134.0.0.0',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Safari/605.1.15',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:135.0) Gecko/20100101 Firefox/135.0'
-]
+from bs4 import BeautifulSoup
+import requests
 
 lock=threading.Lock()
 LOG_FILE = 'log.txt'
 logging_set_up = False
-
+headers_pr1 = {
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+    "Accept-Encoding": "gzip, deflate, br, zstd", 
+    "Accept-Language": "en-GB,en-US;q=0.9,en;q=0.8,ru;q=0.7",
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma':'no-cache',
+    'Connection': 'keep-alive',
+    'Sec-Fetch-Dest': 'document',
+    'Sec-Fetch-Mode': 'navigate',
+    'Sec-Fetch-Site': 'none',
+    'Sec-Fetch-User': '?1',
+    'Sec-Gpc':'1',
+    'Upgrade-Insecure-Requests': '1',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
+    'dnt': '1',
+    'sec-ch-ua': '"Chromium";v="137", "Google Chrome";v="137", "Not/A)Brand";v="24"',
+    'sec-ch-ua-mobile': '?0',
+    'sec-ch-ua-platform': '"Windows"',
+    'sec-gpc': '1',
+    'Host':'content.prlib.ru',
+    'Origin':'https://content.prlib.ru'
+}
+headers_pr2=headers_pr1 
+headers_pr2.update({"Host":"www.prlib.ru","Origin": "https://www.prlib.ru"})
+headers_eph2 = {
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+    "Accept-Encoding": "gzip, deflate, br, zstd",
+    "Accept-Language": "en-US,en;q=0.9",
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma':'no-cache',
+    "Connection": "keep-alive",
+    "Dnt": "1",
+    "Host": "elib.shpl.ru",
+    "Origin":"http://elib.shpl.ru",
+    "Referer":"http://elib.shpl.ru/",
+    "Sec-Ch-Ua": '"Chromium";v="136", "Google Chrome";v="136", "Not.A/Brand";v="99"',
+    "Sec-Ch-Ua-Mobile": "?0",
+    "Sec-Ch-Ua-Platform": '"Windows"',
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "cross-site",
+    "Sec-Fetch-User": "?1",
+    "Sec-Gpc": "1",
+    "Upgrade-Insecure-Requests": "1"
+}
+headers_dict={
+"elib.shpl.ru":headers_eph2,
+"www.prlib.ru":headers_pr2
+}
 
 def _setup_logging():
     time_format = '%Y-%m-%d %H:%M:%S'
@@ -112,14 +149,15 @@ def Time_Processing(timedelta):
     """
     minutes, seconds = divmod(round(timedelta.total_seconds()), 60)
     return minutes, seconds
-def fetch_metadata(url,headers_pr2):
+def fetch_metadata(url,domain):
     #fetch metadata:
-    from bs4 import BeautifulSoup
-    import requests
 
-    html_text =requests.get(url,headers=headers_pr2).text
-    soup = BeautifulSoup(html_text, 'html.parser')
-    if url.split("https://")[1][4:9]=="prlib": #prlib.ru metadata
+
+
+    if domain=="www.prlib.ru": #prlib.ru metadata
+        
+        html_text =requests.get(url,headers=headers_pr2).text
+        soup = BeautifulSoup(html_text, 'html.parser')
         title = soup.head.title.text.split("|")[0]
         full_title=title
         if len(title)>210:
@@ -178,13 +216,55 @@ def fetch_metadata(url,headers_pr2):
                   for lines in csvFile:
                         if url==lines[2]:
                             date=lines[0]
+    elif domain=="elib.shpl.ru":
+        #open the database and get everything:
+        database="FULL_BOOKS_GPIB.csv"
+        with lock:
+            with open(database,"r",encoding="utf-8-sig") as base:
+                csvFile=csv.reader(base,delimiter=";")
+                for row in csvFile:
+                    if row[2]==url:
+                        #get all the data:
+                        if row[0]!="":
+                            date=row[0]
+                        else:
+                            date=""
+                        if row[4]!="":
+                            description=row[4].replace('\xa0', ' ')
+                        else:
+                            description=row[1].replace('\xa0', ' ')
+                        if row[7]!="":
+                            author_=row[7].replace('\xa0', ' ')
+                        else:
+                            author_=""
+                        if row[1]!="":
+                            title=row[1][:230].replace('\xa0', ' ')
+                            full_title=row[1].replace('\xa0', ' ')
+                        else:
+                            title=row[8][:230].replace('\xa0', ' ')
+                            full_title=row[8].replace('\xa0', ' ')
+                        if row[6]!="":
+                            res=re.split(r'\(\d+\)',row[6])
+                            subjects=[i.replace('\xa0', ' ').strip() for i in res]
+                        else:
+                            subjects=""
+                        #language detection:
+                        try:
+                            lang=detect(title)
+                        except:
+                            lang=''
+                        dict_lang={"de":"German", "en":"English"}
+                        if lang in list(dict_lang.keys()):
+                            language=dict_lang[lang]
+                        else:
+                            language="Russian"
     return {
         "collection":["russian-online-libraries"],
         "creator" : author_,
         "language" : language,
         "mediatype" : "texts",
-        "title" : title,
         "Full_title": full_title,
+        "title" : title,
         "description":   description,
         "subject":subjects,
         "date":date,
@@ -195,18 +275,23 @@ def archive_ia(title, url, metadata):
     """
     Function to upload the downloaded book to archvie.org, with all the metadata needed
     """
-
     #secret data:
     with lock:
         with open("personal_data.txt","r") as file:
             session=file.read().splitlines()
+
+    if urllib.parse.urlsplit(url).netloc =="elib.shpl.ru":
         
-    
+        title=metadata["title"]
+        title_file=url.split("/")[-1][:40]
+        
+    else:
+        title_file=url.split("/")[-1]
     #make preparations llike renameing, moving, zipping:
     new_title=transliterate.translit(title, "ru",reversed=True).replace(" ","")[:40]+str(randrange(99))
     new_title = re.sub(r'[^a-zA-Z0-9_]', '', new_title) #remove all special characters
     new_title=new_title.lower()
-    title_file=url.split("/")[-1]
+
     #check, whether a file is already there (because it was already tried before)
     #import glob
     #if glob.glob('books\\'+new_title[:-2]+'*.zip'):
@@ -216,10 +301,7 @@ def archive_ia(title, url, metadata):
         for f in files:
             f_new = new_title+ f
             os.rename(os.path.join(root, f), os.path.join(root, f_new))
-
-    shutil.make_archive(root,
-                        'zip',
-                        root)
+    shutil.make_archive(root,'zip',root)
     new_name=root+"_images.zip"
     os.rename(root+".zip", new_name) #https://help.archive.org/help/how-to-upload-scanned-images-to-make-a-book/
     
@@ -230,37 +312,19 @@ def archive_ia(title, url, metadata):
             raise Exception("Not UPLOADED! Status Code ERROR!")
     except Exception as Argument:
         logging.exception("Error occurred in Ineren archvie upload "+response[0].reason) 
-        os.rename("books\\"+new_title,"books\\"+title) #rename folder
+        os.rename("books\\"+new_title,"books\\"+title_file) #rename folder
         os.remove(new_name) #delete zip
         #rename the files back:
-        root="books\\"+title
+        root="books\\"+title_file
         for dir, subdirs, files in os.walk(root):
             for f in files:
                 f_new = f.replace(new_title,"")
                 os.rename(os.path.join(root, f), os.path.join(root, f_new))
     else:
-        #change the value to 1 in excel:
         os.remove(new_name) #delete zip
         #delete the folder:
         root="books\\"+new_title
-        #rename the files back for creating PDF
         shutil.rmtree(root)
-        """#no use for it
-        datafile="Prlib_1801-1900.csv"
-        with lock:
-            with open(datafile,"r", encoding='utf-8') as csvfile: #read the place, where to put value
-                f = csv.reader(csvfile)
-                data=list(f)
-                url_column=[i[2] for i in data]
-                ind=url_column.index(metadata["Source_url"])
-                data[ind][3]=1
-                
-            with open(datafile, 'w', newline='', encoding='utf-8') as file: #put the value
-                writer = csv.writer(file)
-                writer.writerows(data)
-        """
-        
-
     
 def CheckArchiveForWrites(urls): #Not used
     """DROPPED!
@@ -306,7 +370,6 @@ async def Postprocess(images_folder,width, height,image_path):
         Total_Image[item]=CV2_Russian(os.path.join(images_folder, str(item)+".jpg")) # название папки на Русском в названии мешало прочитать cv2 файл (это окалаось известный баг cv2)
     #delete images folder:
     shutil.rmtree(images_folder)
-    
     regroup=[]
     for h in range(height):
         regroup.append(Total_Image[h*width:(h+1)*width])
@@ -316,7 +379,6 @@ async def Postprocess(images_folder,width, height,image_path):
     #cv2.imwrite(image_path, im_h) (doesn't work with Russian)
         result, data = cv2.imencode('.jpg', im_h)
     except:
-        
         return False
     fh = open(image_path, 'wb')
     fh.write(data)

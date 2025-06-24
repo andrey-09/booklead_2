@@ -8,6 +8,7 @@ import asyncio
 from aiohttp import ClientSession,TCPConnector, ClientTimeout
 import datetime
 import time
+import csv
 import numpy as np
 #import nest_asyncio #used for debugging
 from util import CV2_Russian, number_of_images, Postprocess, Time_Processing, archive_ia, fetch_metadata, CheckArchiveForWrites
@@ -15,10 +16,9 @@ import cv2
 import img2pdf
 from bs4 import BeautifulSoup
 import sys
-from util import get_logger
+from util import get_logger, headers_pr1, headers_pr2, headers_eph2
 from util import md5_hex, to_float, cut_bom, perror, progress, ptext, safe_file_name, Browser, select_one_text_optional
 from util import select_one_text_required, select_one_attr_required, gwar_fix_json,mkdirs_for_regular_file
-from util import user_agents
 from user_agent import generate_user_agent
 import logging
 import threading
@@ -30,60 +30,11 @@ lock_async = asyncio.Lock()
 log = get_logger(__name__)
 BOOK_DIR = 'books'
 
-eshplDl_params = {
-    'quality': 8,
-    'ext': 'jpg'
-}
-
 prlDl_params = {
     'ext': 'jpg' }
-headers_pr1 = {
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-    "Accept-Encoding": "gzip, deflate, br, zstd", 
-    "Accept-Language": "en-GB,en-US;q=0.9,en;q=0.8,ru;q=0.7",
-    'Cache-Control': 'no-cache, no-store, must-revalidate',
-    'Pragma':'no-cache',
-    'Connection': 'keep-alive',
-    'Sec-Fetch-Dest': 'document',
-    'Sec-Fetch-Mode': 'navigate',
-    'Sec-Fetch-Site': 'none',
-    'Sec-Fetch-User': '?1',
-    'Sec-Gpc':'1',
-    'Upgrade-Insecure-Requests': '1',
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
-    'dnt': '1',
-    'sec-ch-ua': '"Chromium";v="137", "Google Chrome";v="137", "Not/A)Brand";v="24"',
-    'sec-ch-ua-mobile': '?0',
-    'sec-ch-ua-platform': '"Windows"',
-    'sec-gpc': '1',
-    'Host':'content.prlib.ru',
-    'Origin':'https://content.prlib.ru'
-}
-headers_pr2=headers_pr1 
-headers_pr2.update({"Host":"www.prlib.ru","Origin": "https://www.prlib.ru"})
-headers_eph1 = {
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-    "Accept-Encoding": "gzip, deflate, br, zstd",
-    "Accept-Language": "en-US,en;q=0.9",
-    'Cache-Control': 'no-cache, no-store, must-revalidate',
-    'Pragma':'no-cache',
-    "Connection": "keep-alive",
-    "Dnt": "1",
-    "Host": "httpbin.io",
-    "Sec-Ch-Ua": '"Chromium";v="136", "Google Chrome";v="136", "Not.A/Brand";v="99"',
-    "Sec-Ch-Ua-Mobile": "?0",
-    "Sec-Ch-Ua-Platform": '"Windows"',
-    "Sec-Fetch-Dest": "document",
-    "Sec-Fetch-Mode": "navigate",
-    "Sec-Fetch-Site": "cross-site",
-    "Sec-Fetch-User": "?1",
-    "Sec-Gpc": "1",
-    "Upgrade-Insecure-Requests": "1"
-}
 
 bro: Browser
 Check_404=False
-
 def makePdf(pdf_path, img_folder, img_ext):
     img_list = []
     for r, _, ff in os.walk(img_folder):
@@ -103,6 +54,115 @@ def saveImage(url, img_id, folder, ext, referer):
     expected_ct = re.compile('image/')
     bro.download(url, image_path, headers, content_type=expected_ct, skip_if_file_exists=True)
 
+#---------------------------------------------------------------------- GPIB:
+async def fetch_image_eshp1D1(session,url: str, headers_pr1, sem,img_path):
+    """
+    по url скачиваю картинку и добавляю в Файл 
+    """
+    flag=True
+    while flag: #check, so the size is ok:
+        if STOP_break:
+            return
+        async with sem:
+            async with session.get(url, headers=headers_pr1) as response:
+                if response.ok:
+                    with open(img_path,"wb") as file:
+                        file.write(await response.read())
+                    if os.path.exists(img_path):
+                        if os.path.getsize(img_path)!=0:
+                            flag=False
+                        else:
+                            await asyncio.sleep(2)
+                    else:
+                        await asyncio.sleep(2)
+                else:
+                    log.info("Bad response from server "+str(response.status))
+                    if response.status==404:
+                        raise AssertionError
+
+async def async_images_eshp1D1(img_url_list,headers_eph1_list,image_path_list):
+    """
+    call every tile image to download in async mode и автоматически скачать книги в папку
+    """
+    sem = asyncio.Semaphore(10)##https://stackoverflow.com/questions/63347818/aiohttp-client-exceptions-clientconnectorerror-cannot-connect-to-host-stackover
+    tasks=[]
+    async with ClientSession(timeout=ClientTimeout(total=30),trust_env=True) as session: #,trust_env=True
+        for i in range(len(img_url_list)):
+            tasks.append(asyncio.ensure_future(fetch_image_eshp1D1(session,img_url_list[i], headers_eph1_list[i],sem,image_path_list[i])))
+
+        await asyncio.gather(*tasks)
+        
+def eshplDl(url):
+    ext = 'jpg'
+    quality = 8
+    domain = urllib.parse.urlsplit(url).netloc
+    global headers_eph2
+    headers_eph1=headers_eph2
+
+    #not needed, since title is in EXCEL!
+    #headers_eph1.update({'User-Agent': random.choice(user_agents)})
+    #html_text = requests.get(url, headers=headers_eph1).text
+    #soup = BeautifulSoup(html_text, 'html.parser')
+    #title = select_one_text_optional(soup, 'title') or md5_hex(url)
+    #title = safe_file_name(title)
+    """
+    for script in soup.find_all('script'):
+    st = str(script)
+    if 'initDocview' in st:
+        book_json = json.loads(st[st.find('{"'): st.find(')')])
+    log.info(f' Каталог для загрузки: {title}')
+    pages = book_json['pages']  
+    page["id"]
+    """
+    title=url.split("/")[-1][:40]
+    
+    #--------------------#get page numbers from CSV:
+    database="FULL_BOOKS_GPIB.csv"
+    with lock:
+        with open(database,"r",encoding="utf-8-sig") as base:
+            csvFile=csv.reader(base,delimiter=";")
+            for row in csvFile:
+                if row[2]==url:
+                    pages=row[10].split(", ")
+    
+    headers_eph1_list=[]
+    image_path_list=[]
+    img_url_list=[]
+    for idx, page in enumerate(pages):
+        img_url = f'http://{domain}/pages/{page}/zooms/{quality}'
+        image_short = '%05d.%s' % (idx+1, ext)
+        image_path = os.path.join(BOOK_DIR, title, image_short)
+        #skip, if file exists:
+        mkdirs_for_regular_file(image_path)
+        if os.path.isfile(image_path) and os.path.getsize(image_path)!=0:
+            continue
+
+        headers_eph1.update({'User-Agent': generate_user_agent(os='win',device_type ='desktop',navigator='chrome')})
+        headers_eph1.update({'Referer': url})
+        
+        headers_eph1_list.append(headers_eph1)
+        image_path_list.append(image_path)
+        img_url_list.append(img_url)
+    flag=True
+    while flag:  
+        if STOP_break:
+            return  
+        try:
+            asyncio.run(async_images_eshp1D1(img_url_list, headers_eph1_list,image_path_list))
+        except AssertionError:
+                return 0
+        except Exception as Argument:  #Error coding
+            time.sleep(1.0)
+            log.exception("Error occurred in ASYNCIO") 
+        else:
+            lst = os.listdir(os.path.join(BOOK_DIR, title)) # your directory path
+            
+            if len(lst)==len(pages):
+                flag=False
+        #progress(f'  Прогресс: {idx + 1} из {len(pages)} стр.')
+    return title, ext
+    
+#-------------------------------------------------------- PRLIB:
 async def fetch_image_download(url: str, i, headers_pr1_local, session,images_folder):
     """ Не добавляйте в util.py, у меня тогда asyncio не работал (может баг на моей стороне)
     по url скачиваю картинку и добавляю в file
@@ -116,8 +176,6 @@ async def fetch_image_download(url: str, i, headers_pr1_local, session,images_fo
             log.info("Bad response from server "+str(response.status))
             if response.status==404:
                 raise AssertionError
-                
-      
 async def async_images_download(semka,connections,url,nums,headers_pr1_local,images_folder,image_path,width,height):
     """
     Async downloader
@@ -132,10 +190,9 @@ async def async_images_download(semka,connections,url,nums,headers_pr1_local,ima
                 
                 flag=True #just keep quering the connections (Until ALL IMAGES ARE PRESENT)
                 count=0 #number of iterations on each picture (get rid fo the infinite loop situation)
-                while flag and count<10:  #while check for a complete download: 
+                while flag and count<20: #while check for a complete download:
                     if STOP_break or Check_404:
                         return
-                    
                     headers_pr1_local.update({'User-Agent': generate_user_agent(os='win',device_type ='desktop',navigator='chrome') })
                     try: #catching error here
                         count+=1
@@ -155,18 +212,15 @@ async def async_images_download(semka,connections,url,nums,headers_pr1_local,ima
                     else:
                         #check for image size:
                         img=os.path.join(images_folder, str(i)+".jpg")
-                        if os.path.exists(img):                       
+                        if os.path.exists(img):
                             if os.path.getsize(img)!=0:
                                 flag=False
-    
     #Double check on the number of items:
     lst=os.listdir(images_folder)
     if len(lst)==width*height:
         #after download of all images create the BIG ONE:
         if not await Postprocess(images_folder,width,height, image_path):
             log.info("Processing image error - " + images_folder)
-                
-      
 async def PresLib_Main_Download(pages,book, title,url):
     """
     Супер быстрый загрузчик Президентской библиотеки
@@ -177,7 +231,6 @@ async def PresLib_Main_Download(pages,book, title,url):
     # and pass the result for DOWNLOAD
     #ON ERROR CREATE THE DATA FOR DOWNLOAD::
     check=True #repeat 1-3 time to gather all the images
-    
     count_loop=0
     while check:
         data={}
@@ -225,20 +278,18 @@ async def PresLib_Main_Download(pages,book, title,url):
         try:
             #create All coroutines to Run:
             global Cores #Total amount of connections: number_of_images_huge*nums*Cores
-            Total_number=400 #per core
+            Total_number=200 #per core
             #speed 10 images/minute-> 10 images*200subs-> 2000subimages perminnute-> 1 subimmage -5secs ->
             connections=10 #amount of connections to subimages in a folder:
             folder_connections=Total_number//connections
             #connections=max(Total_number//(Cores*len(data)),3)
             semka = asyncio.Semaphore(folder_connections)
-            
             #sem1 = asyncio.Semaphore(10)
             #https://pawelmhm.github.io/asyncio/python/aiohttp/2016/04/22/asyncio-aiohttp.html
             coroutines=[]
             for key, value in data.items(): #iterateing over ALL IMAGES gathered:
                 coroutines.append(async_images_download(semka,connections,value[0],value[4],value[3],value[2],value[1],value[5],value[6]))
             #limit amount of folder executed at the same time:
-            
             await asyncio.gather(*coroutines)
         except Exception as Argument:  #Error coding
             time.sleep(2.)
@@ -257,88 +308,6 @@ async def PresLib_Main_Download(pages,book, title,url):
             check=False
         count_loop+=1
 
-        
-async def fetch_image_eshp1D1(url: str, headers_pr1, sem,img_path):
-    """ Не добавляйте в util.py, у меня тогда asyncio не работал (может баг на моей стороне)
-    по url скачиваю картинку и добавляю в Файл 
-    """
-    flag=True
-    #skip, if file exists:
-    if os.path.isfile(img_path) and os.path.getsize(img_path)!=0:
-        flag=False
-    while flag: #check, so the size is ok:
-        async with sem:
-        
-            async with ClientSession(headers=headers_pr1,timeout=ClientTimeout(total=30),trust_env=True) as session: #,trust_env=True
-                  
-                async with session.get(url) as response:
-                    with open(img_path,"wb") as file:
-                        file.write(await response.read())
-                if os.path.getsize(img_path)!=0:
-                    flag=False
-
-async def async_images_eshp1D1(img_url_list,headers_eph1_list,image_path_list):
-    """Не добавляйте в util.py, у меня тогда asyncio не работал (может баг на моей стороне)
-    call every tile image to download in async mode и автоматически скачать книги в папку
-    """
-    sem = asyncio.Semaphore(3)##https://stackoverflow.com/questions/63347818/aiohttp-client-exceptions-clientconnectorerror-cannot-connect-to-host-stackover
-    tasks=[]
-    for i in range(len(img_url_list)):
-        
-        tasks.append(asyncio.ensure_future(fetch_image_eshp1D1(img_url_list[i], headers_eph1_list[i],sem,image_path_list[i])))
-    await asyncio.gather(*tasks)
-
-
-
-        
-def eshplDl(url):
-    ext = eshplDl_params['ext']
-    quality = eshplDl_params['quality']
-    domain = urllib.parse.urlsplit(url).netloc
-    global headers_eph1
-    headers_eph1.update({'User-Agent': random.choice(user_agents)})
-    html_text = requests.get(url, headers=headers_eph1).text
-    soup = BeautifulSoup(html_text, 'html.parser')
-    title = select_one_text_optional(soup, 'title') or md5_hex(url)
-    title = safe_file_name(title)
-    
-    for script in soup.find_all('script'):
-        st = str(script)
-        if 'initDocview' in st:
-            book_json = json.loads(st[st.find('{"'): st.find(')')])
-    log.info(f' Каталог для загрузки: {title}')
-    
-    pages = book_json['pages']
-    
-    headers_eph1_list=[]
-    image_path_list=[]
-    img_url_list=[]
-    for idx, page in enumerate(pages):
-        img_url = f'http://{domain}/pages/{page["id"]}/zooms/{quality}'
-        image_short = '%05d.%s' % (idx+1, ext)
-        image_path = os.path.join(BOOK_DIR, title, image_short)
-        mkdirs_for_regular_file(image_path)
-        headers_eph1.update({'Referer': url})
-        
-        headers_eph1_list.append(headers_eph1)
-        image_path_list.append(image_path)
-        img_url_list.append(img_url)
-    flag=True
-    while flag:    
-        try:
-            asyncio.run(async_images_eshp1D1(img_url_list, headers_eph1_list,image_path_list))
-        except Exception as Argument:  #Error coding
-                    time.sleep(1.0)
-                    log.exception("Error occurred in ASYNCIO") 
-        else:
-            lst = os.listdir(os.path.join(BOOK_DIR, title)) # your directory path
-            
-            if len(lst)==len(img_url_list):
-                flag=False
-        #progress(f'  Прогресс: {idx + 1} из {len(pages)} стр.')
-    return title, ext
-    
-
 def prlDl(url):
     """
     Президентская библиотека имени Б.Н. Ельцина
@@ -348,7 +317,6 @@ def prlDl(url):
     ext = prlDl_params['ext']
     global headers_pr2
     html_text = requests.get(url, headers=headers_pr2).text
-    
     soup = BeautifulSoup(html_text, 'html.parser')
     # instead of Title use unique identitfier of the url
     title_name = soup.head.title.text.split("|")[0]
@@ -374,22 +342,13 @@ def prlDl(url):
                     book = book_json['diva']['settings']
             except:
                 log.exception("Error, NOTHING FOUND!")
-                #BAD URLS:
-                with open("BAD_URLS.txt","a") as file:
-                    file.write(url+"\n")
-                
                 return
-    try:
-        json_text = bro.get_text(book['objectData'],headers=headers_pr2)
-    except:
-        log.exception("Error, NOTHING FOUND!")
-        return  
+    json_text = bro.get_text(book['objectData'],headers=headers_pr2)
     book_data = json.loads(json_text)
     pages = book_data['pgs']
     # run asyncio:
     #nest_asyncio.apply()
     asyncio.run(PresLib_Main_Download(pages, book, title,url))
-    
     #check for the number of images downloaded:
     director=os.path.join(BOOK_DIR, title)
     lst=os.listdir(director)
@@ -402,6 +361,7 @@ def prlDl(url):
     else:
         return 0
 
+#------------------------------------------------
 def unatlib_download(url):
     """
     Национальная электронная библиотека Удмуртской республики
@@ -518,7 +478,7 @@ def gwarDL(url):
         saveImage(img_url, idx + 1, book_dir, ext, 'https://gwar.mil.ru/')
         progress(f'  Прогресс: {idx + 1} из {len(pages)} стр.')
     return title, ext
-
+#-----------------------------------------------------
 
 domains = {
     'elib.shpl.ru': eshplDl,
@@ -590,8 +550,8 @@ def worker(file_urls,i):
                     check_flag=True
                     while check_flag:
                         try:
-                            query='uploader:"pavelserebrjanyi@gmail.com" AND mediatype:texts'
-                            items=s.search_items(query, fields=["source_url"], max_retries =100,request_kwargs={'timeout':(300,300)})
+                            query='uploader:"pavelserebrjanyi@gmail.com" AND mediatype:texts AND source_url:*elib.shpl.ru*'
+                            items=s.search_items(query, fields=["source_url"], max_retries =100,request_kwargs={'timeout':(300,300)},params={"page":1,"rows":30000})
                             # issue with readTimeout is solved by using advanced_search: add params={'page':1, 'rows':70000}
                             #https://github.com/jjjake/internetarchive/issues/610
                             source_urls=[]
@@ -622,7 +582,6 @@ def worker(file_urls,i):
                 file.write('\n'.join(urls[1:]))
                 file.close()
                 continue
-        
 
         load = download_book(url)
         if STOP_break:
@@ -651,16 +610,14 @@ def worker(file_urls,i):
                 # start writing lines except the first line
                 if len(urls)!=1:        
                     file.write('\n'.join(urls[1:]))
-                file.close()           
-
+                file.close()
         log.info(f'Thread {i} finished downloading')
         if args.archive and not STOP_break:
             #archive all photos:
-           
             try:
                 #fetch metadata:
-                global headers_pr2
-                metadata=fetch_metadata(url,headers_pr2)
+                domain = urllib.parse.urlsplit(url).netloc
+                metadata=fetch_metadata(url,domain)
                 archive_ia(load[0],url,metadata) #archive the book
             except:
                 #if an error, skip to the next one
@@ -683,7 +640,6 @@ def worker(file_urls,i):
                     file.write('\n'.join(urls[1:]))
                     #file.write('\n'+urls[0])
                 file.close()
-               
             log.info(f'Thread {i} archived the book')
         #NOT USED (with archive will not work, since i delete the folder)
         if load and args.pdf.lower() in ['y', 'yes'] and not STOP_break:
@@ -694,7 +650,6 @@ def worker(file_urls,i):
             pdf_path = os.path.join(BOOK_DIR, f'{title_name}.pdf')
             makePdf(pdf_path, img_folder_full, img_ext)
             ptext(f' - Файл сохранён: {pdf_path}')
-        
         log.info(f'Thread {i} is DONE with the book')
         if STOP_break:
             file.close()
@@ -732,7 +687,6 @@ def main():
         #create urls:
         koef=len(urls)//Cores
         global STOP_break
-
         STOP_break=False # for stoppage
         
         #create new urls in files:
