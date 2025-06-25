@@ -77,9 +77,9 @@ async def fetch_image_eshp1D1(session,url: str, headers_pr1, sem,img_path):
                             if os.path.getsize(img_path)!=0:
                                 flag=False
                             else:
-                                await asyncio.sleep(6)
+                                await asyncio.sleep(2)
                         else:
-                            await asyncio.sleep(6)
+                            await asyncio.sleep(2)
                     except Exception as Argument:
                         log.exception("Error during download:  ")
                 else:
