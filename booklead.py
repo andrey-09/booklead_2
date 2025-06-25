@@ -130,29 +130,29 @@ def eshplDl(url):
             for row in csvFile:
                 if row[2]==url:
                     pages=row[10].split(", ")
-    
-    headers_eph1_list=[]
-    image_path_list=[]
-    img_url_list=[]
-    for idx, page in enumerate(pages):
-        img_url = f'http://{domain}/pages/{page}/zooms/{quality}'
-        image_short = '%05d.%s' % (idx+1, ext)
-        image_path = os.path.join(BOOK_DIR, title, image_short)
-        #skip, if file exists:
-        mkdirs_for_regular_file(image_path)
-        if os.path.isfile(image_path) and os.path.getsize(image_path)!=0:
-            continue
-
-        headers_eph1.update({'User-Agent': generate_user_agent(os='win',device_type ='desktop',navigator='chrome')})
-        headers_eph1.update({'Referer': url})
-        
-        headers_eph1_list.append(headers_eph1)
-        image_path_list.append(image_path)
-        img_url_list.append(img_url)
     flag=True
-    while flag:  
+    while flag:  #for the case of error in main: 
         if STOP_break:
             return  
+        headers_eph1_list=[]
+        image_path_list=[]
+        img_url_list=[]
+        for idx, page in enumerate(pages):
+            img_url = f'http://{domain}/pages/{page}/zooms/{quality}'
+            image_short = '%05d.%s' % (idx+1, ext)
+            image_path = os.path.join(BOOK_DIR, title, image_short)
+            #skip, if file exists:
+            mkdirs_for_regular_file(image_path)
+            if os.path.isfile(image_path) and os.path.getsize(image_path)!=0:
+                continue
+
+            headers_eph1.update({'User-Agent': generate_user_agent(os='win',device_type ='desktop',navigator='chrome')})
+            headers_eph1.update({'Referer': url})
+            
+            headers_eph1_list.append(headers_eph1)
+            image_path_list.append(image_path)
+            img_url_list.append(img_url)
+
         try:
             asyncio.run(async_images_eshp1D1(img_url_list, headers_eph1_list,image_path_list))
         except AssertionError:
