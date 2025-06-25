@@ -70,15 +70,18 @@ async def fetch_image_eshp1D1(session,url: str, headers_pr1, sem,img_path):
                 return
             async with session.get(url, headers=headers_pr1, proxy=proxy2) as response:
                 if response.ok:
-                    with open(img_path,"wb") as file:
-                        file.write(await response.read())
-                    if os.path.exists(img_path):
-                        if os.path.getsize(img_path)!=0:
-                            flag=False
+                    try: #error handling for timeout
+                        with open(img_path,"wb") as file:
+                            file.write(await response.read())
+                        if os.path.exists(img_path):
+                            if os.path.getsize(img_path)!=0:
+                                flag=False
+                            else:
+                                await asyncio.sleep(6)
                         else:
-                            await asyncio.sleep(2)
-                    else:
-                        await asyncio.sleep(2)
+                            await asyncio.sleep(6)
+                    except Exception as Argument:
+                        log.exception("Error during download:  ")
                 else:
                     log.info("Bad response from server "+str(response.status))
                     if response.status==404:
