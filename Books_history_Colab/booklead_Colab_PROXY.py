@@ -32,58 +32,8 @@ lock_async = asyncio.Lock()
 log = get_logger(__name__)
 BOOK_DIR = 'books'
 
-                  
-                 
-                
- 
-
 prlDl_params = {
     'ext': 'jpg' }
-
-               
-                                                                                                                                                        
-                                                  
-                                                             
-                                                           
-                        
-                               
-                                 
-                                 
-                             
-                           
-                  
-                                     
-                                                                                                                                    
-               
-                                                                                     
-                             
-                                      
-                   
-                              
-                                       
- 
-                        
-                                                                            
-                
-                                                                                                                                                        
-                                                 
-                                        
-                                                           
-                        
-                               
-               
-                         
-                                                                                     
-                             
-                                      
-                                 
-                                 
-                                   
-                           
-                   
-                                    
- 
-
 bro: Browser
 Google_Drive_Path="drive/MyDrive/Books_download/"
 Check_404=False
@@ -111,13 +61,14 @@ async def fetch_image_eshp1D1(session,url: str, headers_pr1, sem,img_path):
     """
     по url скачиваю картинку и добавляю в Файл 
     """
-    #proxy2='' #after that change the session.get with proxy=...
+    proxy2='http://brd-customer-hl_6483eeb7-zone-datacenter_proxy3:1xbqsz3vaq8i@brd.superproxy.io:33335' #after that change the session.get with proxy=...
     flag=True
     while flag: #check, so the size is ok:
-        if STOP_break:
-            return
+
         async with sem:
-            async with session.get(url, headers=headers_pr1) as response:
+            if STOP_break:
+                return
+            async with session.get(url, headers=headers_pr1, proxy=proxy2) as response:
                 if response.ok:
                     with open(img_path,"wb") as file:
                         file.write(await response.read())
@@ -137,9 +88,9 @@ async def async_images_eshp1D1(img_url_list,headers_eph1_list,image_path_list):
     """
     call every tile image to download in async mode и автоматически скачать книги в папку
     """
-    sem = asyncio.Semaphore(10)##https://stackoverflow.com/questions/63347818/aiohttp-client-exceptions-clientconnectorerror-cannot-connect-to-host-stackover
+    sem = asyncio.Semaphore(5)##https://stackoverflow.com/questions/63347818/aiohttp-client-exceptions-clientconnectorerror-cannot-connect-to-host-stackover
     tasks=[]
-    async with ClientSession(timeout=ClientTimeout(total=30),trust_env=True) as session: #,trust_env=True
+    async with ClientSession(timeout=ClientTimeout(total=300, ceil_threshold=40),trust_env=True) as session: #,trust_env=True
         for i in range(len(img_url_list)):
             tasks.append(asyncio.ensure_future(fetch_image_eshp1D1(session,img_url_list[i], headers_eph1_list[i],sem,image_path_list[i])))
 
@@ -208,9 +159,14 @@ def eshplDl(url):
             time.sleep(1.0)
             log.exception("Error occurred in ASYNCIO") 
         else:
-            lst = os.listdir(os.path.join(BOOK_DIR, title)) # your directory path
-            
-            if len(lst)==len(pages):
+            pa=os.path.join(BOOK_DIR, title)
+            lst = os.listdir(pa) # your directory path
+            #check on not zero:
+            count_images=0
+            for fi in lst:
+                if os.path.getsize(os.path.join(pa,fi))!=0:
+                   count_images+=1 
+            if count_images==len(pages):
                 flag=False
         #progress(f'  Прогресс: {idx + 1} из {len(pages)} стр.')
     return title, ext

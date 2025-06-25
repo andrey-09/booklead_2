@@ -61,9 +61,10 @@ async def fetch_image_eshp1D1(session,url: str, headers_pr1, sem,img_path):
     """
     flag=True
     while flag: #check, so the size is ok:
-        if STOP_break:
-            return
+        
         async with sem:
+            if STOP_break:
+                return
             async with session.get(url, headers=headers_pr1) as response:
                 if response.ok:
                     with open(img_path,"wb") as file:
@@ -72,21 +73,22 @@ async def fetch_image_eshp1D1(session,url: str, headers_pr1, sem,img_path):
                         if os.path.getsize(img_path)!=0:
                             flag=False
                         else:
-                            await asyncio.sleep(2)
+                            await asyncio.sleep(5)
                     else:
-                        await asyncio.sleep(2)
+                        await asyncio.sleep(5)
                 else:
                     log.info("Bad response from server "+str(response.status))
+                    await asyncio.sleep(3)
                     if response.status==404:
                         raise AssertionError
 
 async def async_images_eshp1D1(img_url_list,headers_eph1_list,image_path_list):
     """
     call every tile image to download in async mode и автоматически скачать книги в папку
-    """
-    sem = asyncio.Semaphore(10)##https://stackoverflow.com/questions/63347818/aiohttp-client-exceptions-clientconnectorerror-cannot-connect-to-host-stackover
+    """#100 seamphore --too much
+    sem = asyncio.Semaphore(20)##https://stackoverflow.com/questions/63347818/aiohttp-client-exceptions-clientconnectorerror-cannot-connect-to-host-stackover
     tasks=[]
-    async with ClientSession(timeout=ClientTimeout(total=30),trust_env=True) as session: #,trust_env=True
+    async with ClientSession(timeout=ClientTimeout(total=250, ceil_threshold=20),trust_env=True) as session: #,trust_env=True
         for i in range(len(img_url_list)):
             tasks.append(asyncio.ensure_future(fetch_image_eshp1D1(session,img_url_list[i], headers_eph1_list[i],sem,image_path_list[i])))
 
@@ -152,12 +154,17 @@ def eshplDl(url):
         except AssertionError:
                 return 0
         except Exception as Argument:  #Error coding
-            time.sleep(1.0)
+            time.sleep(5.0)
             log.exception("Error occurred in ASYNCIO") 
         else:
-            lst = os.listdir(os.path.join(BOOK_DIR, title)) # your directory path
-            
-            if len(lst)==len(pages):
+            pa=os.path.join(BOOK_DIR, title)
+            lst = os.listdir(pa) # your directory path
+            #check on not zero:
+            count_images=0
+            for fi in lst:
+                if os.path.getsize(os.path.join(pa,fi))!=0:
+                   count_images+=1 
+            if count_images==len(pages):
                 flag=False
         #progress(f'  Прогресс: {idx + 1} из {len(pages)} стр.')
     return title, ext
