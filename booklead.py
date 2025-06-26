@@ -24,7 +24,8 @@ import logging
 import threading
 import requests
 from internetarchive import get_session
-import win32com.client as com #for windows folder size
+import platform #Operating system check
+import subprocess #folder size for Linux
 
 lock = threading.Lock()
 lock_async = asyncio.Lock()
@@ -718,17 +719,25 @@ def main():
         for i in range(Cores):
             threads[i].start()
             log.info(f'Thread {i} is starting')
+        #Operating system check:
+        plat=platform.system()
         try:
             timer=0
             while any([ threads[i].is_alive() for i in range(Cores)]):
                 time.sleep(20)
 
                 timer+=1
-                if timer==180: #check size every hour
-                    #check for the size:
-                    fso = com.Dispatch("Scripting.FileSystemObject")
-                    folder = fso.GetFolder(BOOK_DIR)
-                    size=folder.Size/2**30 #GB
+                if timer==360: #check size every 2 hours
+                    if plat=="Windows": #windows foldsize:
+                        #check for the size:
+                        import win32com.client as com #for windows folder size (if imported not here, error on Linux)
+                        fso = com.Dispatch("Scripting.FileSystemObject")
+                        folder = fso.GetFolder(BOOK_DIR)
+                        size=folder.Size/2**30 #GB
+                    else: #both "Linux" and Mac
+                        res=subprocess.run(['du', '-sb',BOOK_DIR], capture_output=True, text=True)
+                        size=int(res.stdout.split()[0])/2**30 #GB
+                        
                     if size>args.max_size:
                         print(f"Folder size is larger than {args.max_size} GB -> Stopping the Script")
                         STOP_break=True
@@ -763,7 +772,7 @@ if __name__ == '__main__':
     parser.add_argument('--cores', dest='cores',default='1', metavar='1', help='На скольких корах ранить',type=int)
     parser.add_argument('--continue', dest='continue1',default='0', metavar='0', help='Продолжить ли прошлое прерванное скачивание (ссылки в "urls_.txt")? (0/1)',type=int)
     parser.add_argument('--archive', dest='archive',default='0', metavar='0', help='(0/1) Загрузить ли книгу в Онлайн Архив archive.org (для удобной конвертации и оптимизации)',type=int)
-    parser.add_argument('--max_size', dest='max_size',default='100', metavar='100', help='Максимальный размер папки с загрузками в ГБ',type=int)
+    parser.add_argument('--max_size', dest='max_size',default='100', metavar='100', help='Максимальный размер папки с загрузками в ГБ',type=float)
     args = parser.parse_args()
     if args.url or args.list:
         main()
