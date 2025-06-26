@@ -719,7 +719,18 @@ def main():
             log.info(f'Thread {i} is starting')
         try:
             while any([ threads[i].is_alive() for i in range(Cores)]):
-                time.sleep(10)
+                time.sleep(20)
+                #check for the size:
+                size=0
+                for path, dirs, files in os.walk(BOOK_DIR):
+                    for f in files:
+                        fp = os.path.join(path, f)
+                        size += os.path.getsize(fp)
+                size=size/2**30 #GB
+                if size>args.max_size:
+                    print(f"Folder size is larger than {args.max_size} GB -> Stopping the Script")
+                    STOP_break=True
+                    break
                 
                 #check for the submitted url to be on archive.org (if archive selected and mark it in excel)
                 #if args.archive:
@@ -749,6 +760,7 @@ if __name__ == '__main__':
     parser.add_argument('--cores', dest='cores',default='1', metavar='1', help='На скольких корах ранить',type=int)
     parser.add_argument('--continue', dest='continue1',default='0', metavar='0', help='Продолжить ли прошлое прерванное скачивание (ссылки в "urls_.txt")? (0/1)',type=int)
     parser.add_argument('--archive', dest='archive',default='0', metavar='0', help='(0/1) Загрузить ли книгу в Онлайн Архив archive.org (для удобной конвертации и оптимизации)',type=int)
+    parser.add_argument('--max_size', dest='max_size',default='100', metavar='100', help='Максимальный размер папки с загрузками в ГБ',type=int)
     args = parser.parse_args()
     if args.url or args.list:
         main()
