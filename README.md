@@ -58,9 +58,6 @@ xxxxxxxxxxxxxxxx
 ```
 Если вам очень нужно, чтобы я их ещё зашифровал, напишите, зашифрую.
 
-### Полезные ресурсы:
-- https://help.archive.org/help/how-to-upload-scanned-images-to-make-a-book/
-- https://www.loc.gov/marc/umb/um01to06.html
 ------------
 
 ## Запуск
@@ -117,3 +114,9 @@ http://elib.shpl.ru/ru/nodes/16533-vyp-1-zhilischnoe-stroitelstvo-v-gorodskih-po
 `--continue` - для продолжения прерванного прошлого скачивания  
 `--archive` - загрузит книги на сервер archive.org (вначале вас попросит коды, если их еще нет).  
  Использование: `python booklead.py --list books.txt --cores 10 --archive 1` -Все 10 книг будут архивироваться на сервер. Чтобы их просмотреть зайдите на свой аккаунт и My Uploads, все они там будут где-то через 5 минут после закачки (серверу требуется время обработать)
+
+
+### Полезные ресурсы:
+- https://help.archive.org/help/how-to-upload-scanned-images-to-make-a-book/
+- https://www.loc.gov/marc/umb/um01to06.html
+- [archive](https://archive.org/details/russian-online-libraries)
