@@ -24,6 +24,7 @@ import logging
 import threading
 import requests
 from internetarchive import get_session
+import win32com.client as com #for windows folder size
 
 lock = threading.Lock()
 lock_async = asyncio.Lock()
@@ -718,19 +719,21 @@ def main():
             threads[i].start()
             log.info(f'Thread {i} is starting')
         try:
+            timer=0
             while any([ threads[i].is_alive() for i in range(Cores)]):
                 time.sleep(20)
-                #check for the size:
-                size=0
-                for path, dirs, files in os.walk(BOOK_DIR):
-                    for f in files:
-                        fp = os.path.join(path, f)
-                        size += os.path.getsize(fp)
-                size=size/2**30 #GB
-                if size>args.max_size:
-                    print(f"Folder size is larger than {args.max_size} GB -> Stopping the Script")
-                    STOP_break=True
-                    break
+
+                timer+=1
+                if timer==180: #check size every hour
+                    #check for the size:
+                    fso = com.Dispatch("Scripting.FileSystemObject")
+                    folder = fso.GetFolder(BOOK_DIR)
+                    size=folder.Size/2**30 #GB
+                    if size>args.max_size:
+                        print(f"Folder size is larger than {args.max_size} GB -> Stopping the Script")
+                        STOP_break=True
+                        break
+                    timer=0
                 
                 #check for the submitted url to be on archive.org (if archive selected and mark it in excel)
                 #if args.archive:
