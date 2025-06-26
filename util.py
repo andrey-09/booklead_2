@@ -295,8 +295,8 @@ def archive_ia(title, url, metadata):
     #check, whether a file is already there (because it was already tried before)
     #import glob
     #if glob.glob('books\\'+new_title[:-2]+'*.zip'):
-    os.rename("books\\"+title_file, "books\\"+new_title)
-    root="books\\"+new_title
+    os.rename(os.path.join("books",title_file), os.path.join("books",new_title))
+    root=os.path.join("books",new_title)
     for dir, subdirs, files in os.walk(root):
         for f in files:
             f_new = new_title+ f
@@ -312,10 +312,10 @@ def archive_ia(title, url, metadata):
             raise Exception("Not UPLOADED! Status Code ERROR!")
     except Exception as Argument:
         logging.exception("Error occurred in Ineren archvie upload "+response[0].reason) 
-        os.rename("books\\"+new_title,"books\\"+title_file) #rename folder
+        os.rename(os.path.join("books",new_title),os.path.join("books",title_file)) #rename folder
         os.remove(new_name) #delete zip
         #rename the files back:
-        root="books\\"+title_file
+        root=os.path.join("books",title_file)
         for dir, subdirs, files in os.walk(root):
             for f in files:
                 f_new = f.replace(new_title,"")
@@ -323,7 +323,7 @@ def archive_ia(title, url, metadata):
     else:
         os.remove(new_name) #delete zip
         #delete the folder:
-        root="books\\"+new_title
+        root=os.path.join("books",new_title)
         shutil.rmtree(root)
     
 def CheckArchiveForWrites(urls): #Not used

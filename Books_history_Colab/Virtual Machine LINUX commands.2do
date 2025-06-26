@@ -1,0 +1,15 @@
+Virtual Machine LINUX commands:
+(8 cpus /32 gb)
+ls -l (show files and their sizes in a directory)
+du -h (show all folders+ subfolders and their size ) + --exclude=env
+
+https://stackoverflow.com/questions/11720079/linux-command-to-get-size-of-files-and-directories-present-in-a-particular-folde
+
+Pythno SETUP VM:
+https://cloud.google.com/python/docs/setup
+
+Pricing:
+https://cloud.google.com/compute/vm-instance-pricing?hl=en#section-4
+
+All cloud:
+https://github.com/cloudcommunity/Cloud-Free-Tier-Comparison?tab=readme-ov-file#1-aws
