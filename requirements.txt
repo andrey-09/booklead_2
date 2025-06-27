@@ -3,10 +3,11 @@ beautifulsoup4==4.13.4
 img2pdf==0.6.1
 internetarchive==5.2.1
 numpy==2.2.5
-opencv_python==4.11.0.86
+opencv_python==4.11.0.86; sys_platform == 'win32'
 Requests==2.31.0
 transliterate==1.10.2
 pillow==11.2.1
 langdetect==1.0.9
 user-agent==0.1.10
 pywin32==310; sys_platform == 'win32'
+opencv-python-headless==4.11.0.86; sys_platform == 'linux'
