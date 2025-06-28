@@ -92,7 +92,7 @@ async def async_images_eshp1D1(img_url_list,headers_eph1_list,image_path_list):
     """
     call every tile image to download in async mode и автоматически скачать книги в папку
     """#100 seamphore --too much
-    sem = asyncio.Semaphore(30)##https://stackoverflow.com/questions/63347818/aiohttp-client-exceptions-clientconnectorerror-cannot-connect-to-host-stackover
+    sem = asyncio.Semaphore(8)##https://stackoverflow.com/questions/63347818/aiohttp-client-exceptions-clientconnectorerror-cannot-connect-to-host-stackover
     tasks=[]
     async with ClientSession(timeout=ClientTimeout(total=250, ceil_threshold=20),trust_env=True) as session: #,trust_env=True
         for i in range(len(img_url_list)):
