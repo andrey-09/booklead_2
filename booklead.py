@@ -102,7 +102,7 @@ async def async_images_eshp1D1(img_url_list,headers_eph1_list,image_path_list):
     """#100 seamphore --too much
     sem = asyncio.Semaphore(10) #https://stackoverflow.com/questions/63347818/aiohttp-client-exceptions-clientconnectorerror-cannot-connect-to-host-stackover
     tasks=[]
-    async with ClientSession(timeout=ClientTimeout(total=250, ceil_threshold=20),trust_env=True) as session: #,trust_env=True
+    async with ClientSession(timeout=ClientTimeout(total=300, ceil_threshold=20),trust_env=True) as session: #,trust_env=True
         for i in range(len(img_url_list)):
             tasks.append(asyncio.ensure_future(fetch_image_eshp1D1(session,img_url_list[i], headers_eph1_list[i],sem,image_path_list[i])))
 
