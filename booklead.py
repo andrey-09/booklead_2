@@ -75,6 +75,7 @@ async def fetch_image_eshp1D1(session,url: str, headers_pr1, sem,img_path):
                         if os.path.exists(img_path):
                             if os.path.getsize(img_path)!=0:
                                 flag=False
+                                await asyncio.sleep(0.01)
                             else:
                                 await asyncio.sleep(1.2)
                         else:
@@ -87,12 +88,19 @@ async def fetch_image_eshp1D1(session,url: str, headers_pr1, sem,img_path):
                     await asyncio.sleep(2)
                     if response.status==404:
                         raise AssertionError
-
+            #end=time.time()-start #start=time.time #LOGGINg the time for an image
+            #with lock:
+            #    async with lock_async:
+            #        with open("images_log_time.txt","a") as fil:
+            #            fil.write(str(end)+"\n")
+                        
+                    
+                
 async def async_images_eshp1D1(img_url_list,headers_eph1_list,image_path_list):
     """
     call every tile image to download in async mode и автоматически скачать книги в папку
     """#100 seamphore --too much
-    sem = asyncio.Semaphore(8)##https://stackoverflow.com/questions/63347818/aiohttp-client-exceptions-clientconnectorerror-cannot-connect-to-host-stackover
+    sem = asyncio.Semaphore(10) #https://stackoverflow.com/questions/63347818/aiohttp-client-exceptions-clientconnectorerror-cannot-connect-to-host-stackover
     tasks=[]
     async with ClientSession(timeout=ClientTimeout(total=250, ceil_threshold=20),trust_env=True) as session: #,trust_env=True
         for i in range(len(img_url_list)):
@@ -216,7 +224,7 @@ async def async_images_download(semka,connections,url,nums,headers_pr1_local,ima
                         log.info("404 ERRORS, skipping: " + images_folder)
                         #the error is 404 (skip this book on count):
                         if count>4:
-                            with lock_async:
+                            async with lock_async:
                                 Check_404=True
                             return
                     except Exception as Argument:
